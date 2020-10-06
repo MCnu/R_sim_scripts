@@ -29,7 +29,7 @@ mmsdplot <- function(IDarray, spbmsd = T, title="test", plot_header = NA,
     mplot <- ggplot()+
       comtheme+
       #Set up  log scale
-      scale_x_log10(limits = c(0.2, 2.1))+
+      scale_x_log10(limits = c(0.2, 4.2))+
       scale_y_log10(limits = c(0.000999,0.1))+
       annotation_logticks(color = "black")+
       geom_smooth(data = msdcomplete, aes(x=taus, y=MSD, color = ID, fill = ID))+

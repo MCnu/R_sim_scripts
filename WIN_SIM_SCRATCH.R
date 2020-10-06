@@ -24,7 +24,7 @@ list.files()
 #and merge MSDs for condition/sim
 setwd("C:/USERS/MCS/Desktop/PULLS/R_sim_scripts/data/Analytical_environment/raw_data")
 list.files()
-setwd(list.files()[1])
+setwd(list.files()[3])
 
 for(i in 1:length(list.files())){
   if(i == 1){
@@ -44,10 +44,10 @@ for(i in 1:length(sim_list)){
 
 tail(msd_list[[1]])
 
-simMSD(msd_list, "PY_SPB_100_100_FLE")
-kurzplot("PY_SPB_100_100_FLE")
+simMSD(msd_list, "PY_URA3_20_70_FLE")
+kurzplot("PY_URA3_20_70_FLE")
 
-mmsdplot(c(uap, "URA3_00_00_FLE", "PY_SPB_100_100_FLE"))
+mmsdplot(c(uap, gup, "PY_URA3_00_00_FLE", "PY_URA3_20_70_FLE","PY_URA3_20_80_FLE", "PY_URA3_80_90_FLE","PY_URA3_90_70_FLE", "PY_URA3_90_75_FLE","PY_URA3_90_80_FLE","PY_SPB_100_100_FLE"))
 
 #cut length of sim_list to remove buffer (300 secs or 1500 steps)
 
