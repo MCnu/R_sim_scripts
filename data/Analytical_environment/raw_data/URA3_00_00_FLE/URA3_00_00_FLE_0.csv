@@ -1,4 +1,4 @@
-locus_radius:0.01,nuclear_radius:1.0,bound_zone_thickness:0.15,bound_to_bound:0,unbound_to_bound:0,
+locus_radius:0.01,nuclear_radius:1.0,bound_zone_thickness:0.18350341907227397,bound_to_bound:0,unbound_to_bound:0,
 URA3_FLE_BINDING_COLLISIONrestep
 X,Y,is_bound
 -0.2881444749720377,-0.10844531712317665,0
