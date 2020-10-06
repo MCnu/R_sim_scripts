@@ -11,8 +11,6 @@ sim_lin <-
            ctrl_summ = F,
            summarize = T,
            frame_length = 0.5,
-           dir = "~/Box/MCSBACKUP/DB_FIRSTPUSH/Mike Sumner/AlphaRelease",
-           lutdir = "~/Box/MCSBACKUP/DB_FIRSTPUSH/Mike Sumner/AlphaRelease/LUT",
            contact = "first") {
     #create LUT
     LUT_ttp_vec <- c()
@@ -129,15 +127,7 @@ sim_lin <-
           
           
         }
-        # if(vacf == T){
-        #   if(i == 1){
-        #     vacf_frame <- data.frame()
-        #   }
-        #   distacf <- acf(float_direct_frame$delta_dist, lag.max = 5, plot = F)$acf
-        #
-        #   vacf_frame <- rbind(vacf_frame, data.frame(cID = float_alut[1,2], cont_num = float_alut[1,3], dacf = c(distacf[[2]],distacf[[3]], distacf[[4]], distacf[[5]], distacf[[6]]), lag = c(1,2,3,4,5)))
-        #
-        # }
+        
         if (summarize == T) {
           summ_frame <-
             rbind(
@@ -154,31 +144,8 @@ sim_lin <-
         
       }
       
-      
-      
-      #redo this to create a "delta theta" ala cluster components
-      
-      
-      
-      
-      
-      #VACF PORITON NOW NOT INTEGRAL TO PAPER, but good for checking no anomalies in autocorrelation (ie directed movement)
-      #if(vacf == T){
-      #  PRE_vacf_x <- as.numeric(unlist(precon_float_file[,4]))%>%acf(lag.max=5)$acf
-      #  PRE_vacf_y <- as.numeric(unlist(precon_float_file[,5]))%>%acf(lag.max=5)$acf
-      #  POS_vacf_x <- as.numeric(unlist(poscon_float_file[,4]))%>%acf(lag.max=5)$acf
-      #  POS_vacf_y <- as.numeric(unlist(poscon_float_file[,5]))%>%acf(lag.max=5)$acf
-      
-      #  avg_vacf_vec <- c((PRE_vacf_x+PRE_vacf_y)/2, (POS_vacf_x+POS_vacf_y)/2)
-      #vacf_df <- rbind(vacf_df, data.frame())
-      
-      #}
       DIRECT_DF <- rbind(DIRECT_DF, float_direct_frame)
     }
-    
-    
-    
-    
     if (JDD == T) {
       sum_filt <-
         data.frame(
@@ -206,8 +173,6 @@ sim_lin <-
             med_dis = median(filt_pos[, 4])
           )
         sum_filt <- rbind(sum_filt, prebind, posbind)
-        
-        
       }
       
       jplot <- ggplot() +

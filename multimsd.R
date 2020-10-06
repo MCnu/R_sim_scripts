@@ -1,10 +1,9 @@
-comtheme <- theme(text = element_text(family = "Arial", color = "#545454", size = 21),
-                  axis.title.x = element_blank(),
-                  axis.title.y = element_blank(),
-                  legend.position = "none")
 
 
-mmsdplot <- function(IDarray, spbmsd = T, title="test", plottitle= substitute(paste(italic("URA3"))), merge_input_dir = "C:/USERS/MCS/DESKTOP/ANALYTICAL_ENVIRONMENT/MSD_merged", plot_output_dir, save_plot = F){
+
+mmsdplot <- function(IDarray, spbmsd = T, title="test", plot_header = NA, 
+                     merge_input_dir = "C:/USERS/MCS/DESKTOP/PULLS/R_SIM_SCRIPTS/DATA/ANALYTICAL_ENVIRONMENT/MSD_merged", 
+                     plot_output_dir, save_plot = F){
   
   
   setwd(merge_input_dir)
@@ -21,8 +20,8 @@ mmsdplot <- function(IDarray, spbmsd = T, title="test", plottitle= substitute(pa
   print(msdcomplete)
   
   #saves plot axis and internal annotation label names
-  xaxlabel = expression("Tau (us)")
-  yaxlabel = expression("Mean squared displacement" ~ (Âµm^2))
+  xaxlabel = expression("Tau (s)")
+  yaxlabel = expression("Mean squared displacement" ~ (µm^2))
   
     spb_float_x <- c(1:200)*0.21
     spb_float_y <- (spb_float_x * 0.0009) + 0.0015
@@ -34,11 +33,16 @@ mmsdplot <- function(IDarray, spbmsd = T, title="test", plottitle= substitute(pa
       scale_y_log10(limits = c(0.000999,0.1))+
       annotation_logticks(color = "black")+
       geom_smooth(data = msdcomplete, aes(x=taus, y=MSD, color = ID, fill = ID))+
-      labs(x=xaxlabel, y = yaxlabel, title = plottitle)+
+      labs(x=xaxlabel, y = yaxlabel)+
       #scale_fill_manual(values = c("#66A53D", "#52307c", "#BC6C45"))+
       #scale_color_manual(values = c("#66A53D", "#52307c", "#BC6C45"))+
-      theme(legend.position = "right", plot.title = element_blank())+
+      theme(legend.position = "right")+
       coord_cartesian()
+    
+    if(class(plot_header) == "character"){
+      mplot <- mplot+
+        ggtitle(plot_header)
+    }
     
     if(length(IDarray) == 2){
       mplot<- mplot+

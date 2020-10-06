@@ -1,6 +1,7 @@
 
 
-simMSD <- function(sim_list, fileID, taus=100, SILENCE = T){
+simMSD <- function(sim_list, fileID, taus=100, SILENCE = T, 
+                   output_dir = "C:/USERS/MCS/DESKTOP/PULLS/R_SIM_SCRIPTS/data/ANALYTICAL_ENVIRONMENT/calculated_MSD"){
   
   for(i in 1:length(sim_list)){
     DF <- as.data.frame(sim_list[i])
@@ -24,7 +25,7 @@ simMSD <- function(sim_list, fileID, taus=100, SILENCE = T){
       MSDmat[j,1] <- mean(floatMSD[,1])
     }
     MSD <- data.frame(MSD = as.numeric(MSDmat[,1]), taus = as.numeric(MSDmat[,2]*0.21), experiment = paste("SIM", i, sep = "_"))
-    setwd("C:/USERS/MCS/DESKTOP/ANALYTICAL_ENVIRONMENT/calculated_MSD")
+    setwd(output_dir)
     write.csv(MSD, paste("MSD ", fileID ,"_", i, ".csv", sep=""), row.names = F)
     #print(MSD)
   }

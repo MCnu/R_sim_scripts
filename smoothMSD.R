@@ -1,6 +1,8 @@
 
 
-kurzplot <- function (ID, SILENCE = F, linearized = F, msd_input_dir =  "C:/USERS/MCS/DESKTOP/ANALYTICAL_ENVIRONMENT/CALCULATED_MSD", merge_output_dir = "C:/USERS/MCS/DESKTOP/ANALYTICAL_ENVIRONMENT/MSD_merged") {
+kurzplot <- function (ID, SILENCE = F, linearized = F, 
+                      msd_input_dir =  "C:/USERS/MCS/DESKTOP/PULLS/R_SIM_SCRIPTS/data/ANALYTICAL_ENVIRONMENT/CALCULATED_MSD", 
+                      merge_output_dir = "C:/USERS/MCS/DESKTOP/PULLS/R_SIM_SCRIPTS/data/ANALYTICAL_ENVIRONMENT/MSD_merged") {
   library(tidyverse)
   library(stats)
   library(data.table)
