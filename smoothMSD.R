@@ -84,7 +84,6 @@ kurzplot <- function (ID, SILENCE = F, linearized = F,
       theme(legend.position = "none") +
       theme(
         text = element_text(
-          family = "Arial",
           size = 18,
           colour = "black"
         ),
