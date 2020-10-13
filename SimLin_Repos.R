@@ -16,8 +16,8 @@ sim_lin <-
     LUT_ttp_vec <- c()
     for (i in 1:length(Repos_List)) {
       float_mat <- Repos_List[[i]]
-      #print(float_mat[float_mat[,"D2O"] > peri_rad,])
-      print(nrow(float_mat[float_mat[,"D2O"] > peri_rad,]))
+      
+      #(nrow(float_mat[float_mat[,"D2O"] > peri_rad,]))
       float_ttp <- float_mat[float_mat[,"D2O"] > peri_rad,]
       if(!is.null(nrow(float_ttp))){
         if(nrow(float_ttp) >= 1){
@@ -34,7 +34,8 @@ sim_lin <-
 
     LUT_ttpv_logic <-
       (LUT_ttp_vec > time_cutoff & !is.na(LUT_ttp_vec))
-    print(LUT_ttpv_logic)
+    print("Fraction of used trajectories:")
+    print(mean(LUT_ttpv_logic))
 
 
     JDD_DF <-
@@ -64,7 +65,7 @@ sim_lin <-
       float_mat <- Repos_List[[i]]
       float_mat <- float_mat[float_mat[, 4] <= LUT_ttp_vec[i], ]
       step_count <- nrow(float_mat)
-      print(step_count)
+      #print(step_count)
       #print(precon_float_direct_matrix)
       float_direct_frame <- data.frame()
       if (delta_start == "follow") {
@@ -180,7 +181,7 @@ sim_lin <-
         geom_hline(yintercept = sum_u3_d2p[3]) +
         geom_point(data = sum_filt, aes(x = cID, y = med_dis, color = position))
       
-      print(jplot)
+      #print(jplot)
       
     }
     if (delta_start == "follow") {
@@ -189,13 +190,13 @@ sim_lin <-
         coord_cartesian(ylim = c(0, 3.14), xlim = c(-0.5, 0.5)) +
         geom_point(data = DIRECT_DF, aes(x = delta_dist, y = delta_theta))
       
-      print(dplot)
-      print("pridist_vec stored as pdvec")
+      #print(dplot)
+      #print("pridist_vec stored as pdvec")
       pdvec <<- pridist_vec
     }
     if (velo == T) {
       tvv <<- tot_velo_vec
-      print(plot(density(tot_velo_vec)))
+      #print(plot(density(tot_velo_vec)))
     }
     
     if (summarize == T) {
@@ -205,7 +206,7 @@ sim_lin <-
         geom_text(data = summ_frame,
                   aes(x  = mean_delta_dist, y = mean_delta_theta, label = time))
       
-      print(sumplot)
+      #print(sumplot)
     }
   }
 

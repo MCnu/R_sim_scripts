@@ -4,16 +4,29 @@ output: html_document
 author: "Michael Chas Sumner"
 ---
 
-## chunk0, setup
+## chunk0.1, setup packages and root.dir
 
-```{r setup, include=FALSE}
-library(stats)
-# library(boot)
-library(data.table)
-# library(DescTools)
-library(tidyverse)
-# library(mixtools)
-library(viridis)
+```{r setup, include = F}
+
+pull_dir = "C:/Users/MCS/Desktop/PULLS/R_sim_scripts/"
+
+require(stats)
+
+require(data.table)
+
+require(tidyverse)
+
+require(viridis)
+
+require(knitr)
+
+require(gridExtra)
+
+source(paste(pull_dir, "Simulated_MSD.R", sep=""), echo=FALSE)
+
+source(paste(pull_dir, "smoothMSD.R", sep=""), echo=FALSE)
+
+source(paste(pull_dir, "SimLin_Repos.R", sep=""), echo=FALSE)
 
 uap = "U3alonePlus"
 gup = "G1atU3Plus"
@@ -22,18 +35,30 @@ comtheme <- theme_bw() +
   theme(text = element_text(color = "#545454", size = 18),
         legend.position = "none")
 
+#set this to the raw_data directory
+opts_knit$set(root.dir = paste(pull_dir, "data/Analytical_environment/raw_data", sep=""))
+
 
 ```
 
+
+
+
 ## chunk1, create list of trajectories as matrices
 
+## if Debuffer = True, the matrices will be cropped to the size defined in
+debuff_end and debuff_start
+
 ```{r, echo=F}
-#set this to the raw_data directory
-setwd("C:/USERS/MCS/Desktop/PULLS/R_sim_scripts/data/Analytical_environment/raw_data")
+
+Debuffer = F
+
 
 list.files()
+
 #specify the directory containing trajectory .csv files
-setwd(list.files()[6])
+setwd(list.files()[1])
+
 
 for (i in 1:length(list.files())) {
   if (i == 1) {
@@ -41,27 +66,152 @@ for (i in 1:length(list.files())) {
   }
   sim_list[[i]] <- as.matrix(fread(list.files()[i]))
 }
-```
 
-## chunk2, create list of last 200 steps in trajectory, quantify MSD, plot MSD, 
-and merge
-
-##Dependent on chunk1
-
-```{r, echo = F}
-for (i in 1:length(sim_list)) {
-  if (i == 1) {
-    msd_list <- vector(mode = "list", length = length(sim_list))
+if (Debuffer == T){
+  debuff_sim_list <- vector("list", length = length(sim_list))
+  debuff_end <- nrow(sim_list[[1]])
+  debuff_start <- debuff_end - 3000
+  
+  for (i in 1:length(sim_list)) {
+    debuff_sim_list[[i]] <- sim_list[[i]][debuff_start:debuff_end, ]
+    
   }
-  sl_len <- length(sim_list[[i]][, 1])
-  msd_list[[i]] <- sim_list[[i]][((sl_len - 199):sl_len), ]
-}
-curwd <- getwd() %>% strsplit("/") %>% unlist()
-curwd <- curwd[length(curwd)]
+  
+  start_x <- c()
+  start_y <- c()
+  for (i in 1:length(debuff_sim_list)) {
+    start_x <- c(start_x, debuff_sim_list[[i]][1, 1])
+    start_y <- c(start_y, debuff_sim_list[[i]][1, 2])
+  }
+  
+  start_frame <- data.frame(ID = seq(1,length(start_x),1),x = start_x, 
+                            y = start_y, rad = sqrt(start_x^2 + start_y^2))
+  
+  
+  shist_plot <- ggplot(data=start_frame)+
+    geom_histogram(aes(x=rad), binwidth = .01)+
+    comtheme+
+    labs(title = "Start Position Radii")
+  
+  spos_plot <- ggplot(data = start_frame)+
+    geom_point(aes(x=x,y=y))+
+    comtheme+
+    labs(title = "Start Positions")
+  
+  sx_plot <- ggplot(data = start_frame)+
+    geom_histogram(aes(x=x), binwidth = 0.01)+
+    comtheme+
+    labs(title = "Start X")
+  
+  sy_plot <- ggplot(data = start_frame)+
+    geom_histogram(aes(x=y), binwidth = 0.01)+
+    comtheme+
+    labs(title = "Start Y")
+  
+  
+  end_x <- c()
+  end_y <- c()
+  for (i in 1:length(debuff_sim_list)) {
+    end_x <- c(end_x, debuff_sim_list[[i]][nrow(debuff_sim_list[[i]]), 1])
+    end_y <- c(end_y, debuff_sim_list[[i]][nrow(debuff_sim_list[[i]]), 2])
+  }
+  
+  end_frame <- data.frame(ID = seq(1,length(end_x),1),x = end_x, y = end_y, rad = sqrt(end_x^2 + end_y^2))
+  
+  #plot(density(end_frame$rad, from = 0, to = 1))
+  
+ 
+  ehist_plot <- ggplot(data=end_frame)+
+    geom_histogram(aes(x=rad), binwidth = .01)+
+    comtheme+
+    labs(title = "End Position Radii")
+  
+  epos_plot <- ggplot(data = end_frame)+
+    geom_point(aes(x=x,y=y))+
+    comtheme+
+    labs(title = "End Positions")
+  
+  ex_plot <- ggplot(data = end_frame)+
+    geom_histogram(aes(x=x), binwidth = 0.01)+
+    comtheme+
+    labs(title = "End X")
+  
+  ey_plot <- ggplot(data = end_frame)+
+    geom_histogram(aes(x=y), binwidth = 0.01)+
+    comtheme+
+    labs(title = "End Y")
 
-simMSD(msd_list, curwd)
-kurzplot(curwd)
+}else{
+    
+  start_x <- c()
+  start_y <- c()
+  for (i in 1:length(sim_list)) {
+    start_x <- c(start_x, sim_list[[i]][1, 1])
+    start_y <- c(start_y, sim_list[[i]][1, 2])
+  }
+  
+  start_frame <- data.frame(ID = seq(1,length(start_x),1),x = start_x, 
+                            y = start_y, rad = sqrt(start_x^2 + start_y^2))
+  
+  shist_plot <- ggplot(data=start_frame)+
+    geom_histogram(aes(x=rad), binwidth = .01)+
+    comtheme+
+    labs(title = "Start Position Radii")
+  
+  spos_plot <- ggplot(data = start_frame)+
+    geom_point(aes(x=x,y=y))+
+    comtheme+
+    labs(title = "Start Positions")
+  
+  sx_plot <- ggplot(data = start_frame)+
+    geom_histogram(aes(x=x), binwidth = 0.01)+
+    comtheme+
+    labs(title = "Start X")
+  
+  sy_plot <- ggplot(data = start_frame)+
+    geom_histogram(aes(x=y), binwidth = 0.01)+
+    comtheme+
+    labs(title = "Start Y")
+  
+  
+  end_x <- c()
+  end_y <- c()
+  for (i in 1:length(sim_list)) {
+    end_x <- c(end_x, sim_list[[i]][nrow(sim_list[[i]]), 1])
+    end_y <- c(end_y, sim_list[[i]][nrow(sim_list[[i]]), 2])
+  }
+  
+  end_frame <- data.frame(ID = seq(1,length(end_x),1),x = end_x, y = end_y, rad = sqrt(end_x^2 + end_y^2))
+  
+  #plot(density(end_frame$rad, from = 0, to = 1))
+  
+  ehist_plot <- ggplot(data=end_frame)+
+    geom_histogram(aes(x=rad), binwidth = .01)+
+    comtheme+
+    labs(title = "End Position Radii")
+  
+  epos_plot <- ggplot(data = end_frame)+
+    geom_point(aes(x=x,y=y))+
+    comtheme+
+    labs(title = "End Positions")
+  
+  ex_plot <- ggplot(data = end_frame)+
+    geom_histogram(aes(x=x), binwidth = 0.01)+
+    comtheme+
+    labs(title = "End X")
+  
+  ey_plot <- ggplot(data = end_frame)+
+    geom_histogram(aes(x=y), binwidth = 0.01)+
+    comtheme+
+    labs(title = "End Y")
+}
+
+grid.arrange(shist_plot,spos_plot,ehist_plot,epos_plot)
+
+grid.arrange(sx_plot,sy_plot,ex_plot,ey_plot)
+
 ```
+
 
 ## chunk3, create a more robust data set w/ dist to start, to previous, and to 
 origin
@@ -69,9 +219,12 @@ origin
 ##Dependent on chunk1
 
 ```{r, echo = F}
+
+time_interval = 0.5
+
 TBF <- sim_list
 subTBF_nrow <- length(TBF[[1]][, 1])
-time_seq <- matrix(seq(0, (subTBF_nrow - 1) * 0.21, 0.21), ncol = 1)
+time_seq <- matrix(seq(0, (subTBF_nrow - 1) * time_interval, time_interval), ncol = 1)
 for (i in 1:length(TBF)) {
   TBF[[i]] <- cbind(TBF[[i]], time_seq)
   colnames(TBF[[i]]) <- c("x", "y", "is_bound", "time")
@@ -108,15 +261,16 @@ for (i in 1:length(TBF)) {
   tot_d2o <- c(tot_d2o, d2ovec)
 }
 
-summary(tot_d2o)
-
 plot(density(tot_d2o, from = 0, to = 1))
 
 ```
 
-##
 
-## Dependent on chunk3, visualize frequency of peripheral occupancy
+
+
+## Chunk 4, visualize frequency of peripheral occupancy
+
+## Dependent on chunk3
 ```{r, echo = F}
 periph_occu_list <- vector("list", length(d2_list))
 bound_zone_thickness <-
@@ -124,7 +278,7 @@ bound_zone_thickness <-
 for (i in 1:length(d2_list)) {
   float_po_logic <- d2_list[[i]][, "D2O"] > (1 - bound_zone_thickness)
   float_po_matrix <-
-    matrix(seq(0, (length(float_po_logic) - 1) * .21, .21), ncol = 1)
+    matrix(seq(0, (length(float_po_logic) - 1) * time_interval, time_interval), ncol = 1)
   periph_occu_list[[i]] <-
     cbind(float_po_matrix, matrix(as.numeric(float_po_logic), ncol = 1))
 }
@@ -143,7 +297,7 @@ for (i in 1:length(periph_occu_list)) {
 }
 
 #set how many steps make up one bin
-size_of_bin = 50
+size_of_bin = 10 / time_interval
 
 preproc_NAs <- rep(NA, (length(po_plot_frame[, 1]) / size_of_bin))
 bin_po_plot_frame <-
@@ -198,7 +352,7 @@ for (i in 1:length(unique(bin_po_plot_frame[, 2]))) {
 }
 
 bpobf_time_frame <-
-  data.frame(bound_frac = bpo_boundfrac_time, time = c((1:length(bpo_boundfrac_time)) * (0.21 * size_of_bin)))
+  data.frame(bound_frac = bpo_boundfrac_time, time = c((1:length(bpo_boundfrac_time)) * (time_interval * size_of_bin)))
 
 ggplot(data = bpobf_time_frame) +
   stat_smooth(aes(x = time, y = bound_frac * 100)) +
@@ -210,7 +364,71 @@ ggplot(data = bpobf_time_frame) +
 ```
 
 
+## chunk2, create list of last 200 steps in trajectory, quantify MSD, plot MSD, 
+and merge
+
+##Dependent on chunk1
+
+```{r, echo = F, message = F}
+for (i in 1:length(sim_list)) {
+  if (i == 1) {
+    msd_list <- vector(mode = "list", length = length(sim_list))
+  }
+  sl_len <- length(sim_list[[i]][, 1])
+  msd_list[[i]] <- sim_list[[i]][((sl_len - 199):sl_len), ]
+}
+curwd <- getwd() %>% strsplit("/") %>% unlist()
+curwd <- curwd[length(curwd)]
+
+simMSD(msd_list, curwd)
+kurzplot(curwd)
+```
 
 
+
+##chunk5, repositioning
+##
+
+```{r}
+Repos_List <- d2_list
+sim_lin()
+
+tvv_frame <- data.frame(velocity = tvv)
+
+mdd_plot <- ggplot(data = global_direct_sim)+
+  geom_histogram(aes(x=delta_dist), bins = 30)+
+  comtheme
+
+mdt_plot <- ggplot(data=global_summary_sim)+
+  geom_density(aes(x=mean_delta_theta))+
+  comtheme
+
+time_plot <- ggplot(data = global_summary_sim)+
+  geom_density(aes(x = time))+
+  comtheme
+
+velo_plot <- ggplot(data = tvv_frame)+
+  geom_histogram(aes(x = velocity), bins = 30)+
+  comtheme
+
+grid.arrange(velo_plot,time_plot,mdt_plot,mdd_plot)
+
+```
+
+
+##chunk 6, clusters
+
+##Dependent on
+
+```{r}
+#randomize simlist into two pairwise lists
+
+d2_list_length <- length(d2_list)
+
+rand_d2 <- seq(1,d2_list_length,1)
+
+#peroform cluster component analysis on the two lists in a pairwise fashion
+
+```
 
 
