@@ -8,13 +8,16 @@ author: "Michael Chas Sumner"
 
 ```{r setup, include = F}
 
-pull_dir = "C:/Users/MCS/Desktop/PULLS/R_sim_scripts/"
+pull_dir = "C:/users/bjbsu/Desktop/PULLS/R_sim_scripts/"
+
 
 require(stats)
 
 require(data.table)
 
 require(tidyverse)
+
+require(gganimate)
 
 require(viridis)
 
@@ -51,14 +54,19 @@ debuff_end and debuff_start
 
 ```{r, echo=F}
 
+#Controls wheter you cut off the first specified number of steps for each trajectory
 Debuffer = F
 
 
 list.files()
 
 #specify the directory containing trajectory .csv files
-setwd(list.files()[1])
+setwd(list.files()[3])
 
+list_source_wd <- getwd() %>% strsplit("/") %>% unlist()
+list_source_wd <- list_source_wd[length(list_source_wd)]
+
+print(list_source_wd)
 
 for (i in 1:length(list.files())) {
   if (i == 1) {
@@ -220,7 +228,7 @@ origin
 
 ```{r, echo = F}
 
-time_interval = 0.5
+time_interval = 0.21
 
 TBF <- sim_list
 subTBF_nrow <- length(TBF[[1]][, 1])
@@ -261,7 +269,7 @@ for (i in 1:length(TBF)) {
   tot_d2o <- c(tot_d2o, d2ovec)
 }
 
-plot(density(tot_d2o, from = 0, to = 1))
+plot(density(tot_d2o, from = 0, to = max(tot_d2o)))
 
 ```
 
@@ -275,6 +283,10 @@ plot(density(tot_d2o, from = 0, to = 1))
 periph_occu_list <- vector("list", length(d2_list))
 bound_zone_thickness <-
   (1 - sqrt(2 / 3)) # this is outer third of nucleus
+
+#TODO maybe make binning a function? to apply across the list
+bin_to_10sec = FALSE
+
 for (i in 1:length(d2_list)) {
   float_po_logic <- d2_list[[i]][, "D2O"] > (1 - bound_zone_thickness)
   float_po_matrix <-
@@ -284,11 +296,13 @@ for (i in 1:length(d2_list)) {
 }
 
 preproc_NAs <-
+  
   rep(NA, (length(periph_occu_list[[i]][, 1]) * length(periph_occu_list)))
 po_plot_frame <-
   data.frame(Trajectory = preproc_NAs,
              time = preproc_NAs,
              is_periph = preproc_NAs)
+
 for (i in 1:length(periph_occu_list)) {
   po_plot_frame[((i - 1) * nrow(periph_occu_list[[i]]) + 1):(i * nrow(periph_occu_list[[i]])), ] <-
     data.frame(Trajectory = i,
@@ -296,71 +310,136 @@ for (i in 1:length(periph_occu_list)) {
                is_periph = periph_occu_list[[i]][, 2])
 }
 
-#set how many steps make up one bin
-size_of_bin = 10 / time_interval
-
-preproc_NAs <- rep(NA, (length(po_plot_frame[, 1]) / size_of_bin))
-bin_po_plot_frame <-
-  data.frame(Trajectory = preproc_NAs,
-             time = preproc_NAs,
-             is_periph = preproc_NAs)
-for (i in 1:length(bin_po_plot_frame[, 1])) {
-  bin_po_plot_frame[i, 1] <-
-    mean(po_plot_frame[((i - 1) * size_of_bin + 1):(i * size_of_bin), 1])
-  bin_po_plot_frame[i, 2] <- po_plot_frame[((i - 1) * size_of_bin + 1), 2]
-  bin_po_plot_frame[i, 3] <-
-    round(mean(po_plot_frame[((i - 1) * size_of_bin + 1):(i * size_of_bin), 3]))
+if (bin_to_10sec){
+  #set how many steps make up one bin
+  size_of_bin = 10 / time_interval
+  
+  preproc_NAs <- rep(NA, (length(po_plot_frame[, 1]) / size_of_bin))
+  bin_po_plot_frame <-
+    data.frame(Trajectory = preproc_NAs,
+               time = preproc_NAs,
+               is_periph = preproc_NAs)
+  for (i in 1:length(bin_po_plot_frame[, 1])) {
+    bin_po_plot_frame[i, 1] <-
+      mean(po_plot_frame[((i - 1) * size_of_bin + 1):(i * size_of_bin), 1])
+    bin_po_plot_frame[i, 2] <- po_plot_frame[((i - 1) * size_of_bin + 1), 2]
+    bin_po_plot_frame[i, 3] <-
+      round(mean(po_plot_frame[((i - 1) * size_of_bin + 1):(i * size_of_bin), 3]))
+  }
+  
+  
+  bpo_boundfrac_traj <- c()
+  for (i in 1:length(unique(bin_po_plot_frame[, 1]))) {
+    bpo_boundfrac_traj[i] <-
+      mean(bin_po_plot_frame[(bin_po_plot_frame[, 1] == unique(bin_po_plot_frame[, 1])[i]), 3])
+  }
+  
+  ordered_bpopf <- bin_po_plot_frame
+  ordered_bpopf <- mutate(ordered_bpopf, rank = NA)
+  for (i in 1:length(bpo_boundfrac_traj)) {
+    float_frame <-
+      filter(bin_po_plot_frame, Trajectory == (order(bpo_boundfrac_traj)[i]))
+    ordered_bpopf[((i - 1) * nrow(float_frame) + 1):(i * nrow(float_frame)), 1:3] <-
+      float_frame
+    ordered_bpopf[((i - 1) * nrow(float_frame) + 1):(i * nrow(float_frame)), 4] <-
+      i
+  }
+  
+  obpo_plot <- ggplot(data = ordered_bpopf) +
+    geom_tile(aes(
+      x = time,
+      y = rank,
+      color = is_periph,
+      fill = is_periph
+    ),
+    position = "dodge") +
+    theme(legend.position = "none") +
+    scale_colour_viridis() +
+    scale_fill_viridis() +
+    comtheme
+  
+  print(obpo_plot)
+  
+  bpo_boundfrac_time <- c()
+  for (i in 1:length(unique(bin_po_plot_frame[, 2]))) {
+    bpo_boundfrac_time[i] <-
+      mean(bin_po_plot_frame[(bin_po_plot_frame[, 2] == unique(bin_po_plot_frame[, 2])[i]), 3])
+  }
+  
+  bpobf_time_frame <-
+    data.frame(bound_frac = bpo_boundfrac_time, time = c((1:length(bpo_boundfrac_time)) * (time_interval * size_of_bin)))
+  
+  ggplot(data = bpobf_time_frame) +
+    stat_smooth(aes(x = time, y = bound_frac * 100)) +
+    geom_point(aes(x = time, y = bound_frac * 100), alpha = 0.5) +
+    coord_cartesian(ylim = c(0, 100)) +
+    comtheme +
+    ylab("% of Trajectories at the periphery") +
+    xlab("time (s)")
+  
+}else{
+  
+  time_nrow <- length(unique(po_plot_frame$time))
+  
+  time_nrow = 5000
+  
+  float_time_interval <- po_plot_frame$time[2] - po_plot_frame$time[1]
+  
+  mpp_frame <- po_plot_frame[po_plot_frame$time <= (float_time_interval*time_nrow),]
+  
+  order_mat <- matrix(nrow = length(unique(mpp_frame$Trajectory)), ncol = 2)
+  
+  for(i in 1:length(unique(mpp_frame$Trajectory))){
+    float_pot <- mean(mpp_frame[mpp_frame$Trajectory==(unique(mpp_frame$Trajectory)[i]),"is_periph"])
+    order_mat[i,] <- c(i,float_pot)
+    
+  }
+  
+  new_order <- order(order_mat[,2])
+  
+  nompp_frame <- mutate(mpp_frame, rank = NA)
+  
+  for(i in 1:length(unique(mpp_frame$Trajectory))){
+    temp_traj <- mpp_frame[mpp_frame$Trajectory == new_order[i],]
+    nompp_frame[(((i-1)*nrow(temp_traj))+1):(i*nrow(temp_traj)),-(ncol(nompp_frame))] <- temp_traj
+    nompp_frame[(((i-1)*nrow(temp_traj))+1):(i*nrow(temp_traj)),(ncol(nompp_frame))] <- i
+    
+  }
+  
+  po_plot <- ggplot(data = nompp_frame) +
+    geom_tile(aes(
+      x = time,
+      y = rank,
+      color = is_periph,
+      fill = is_periph
+    ),
+    position = "dodge") +
+    theme(legend.position = "none") +
+    scale_colour_viridis() +
+    scale_fill_viridis() +
+    coord_cartesian(xlim = c(0,(float_time_interval * time_nrow)))+
+    comtheme
+  
+  
+  po_avg_time_frame <- data.frame(time = rep(NA,time_nrow), bound_frac = rep(NA,time_nrow))
+  
+  for(i in 1:time_nrow){
+    cur_time <- float_time_interval * (i-1)
+    po_avg_time_frame[i,1] <- cur_time
+    po_avg_time_frame[i,2] <- mean(mpp_frame[mpp_frame$time == cur_time,]$is_periph)
+    
+  }
+  
+  pat_plot <- ggplot(data=po_avg_time_frame)+
+    geom_point(aes(x = time, y = bound_frac * 100), alpha = 0.1) +
+    stat_smooth(aes(x = time, y = bound_frac * 100)) +
+    coord_cartesian(ylim = c(0, 100)) +
+    comtheme +
+    ylab("% of Trajectories at the periphery") +
+    xlab("time (s)")
+  
 }
 
-
-bpo_boundfrac_traj <- c()
-for (i in 1:length(unique(bin_po_plot_frame[, 1]))) {
-  bpo_boundfrac_traj[i] <-
-    mean(bin_po_plot_frame[(bin_po_plot_frame[, 1] == unique(bin_po_plot_frame[, 1])[i]), 3])
-}
-
-ordered_bpopf <- bin_po_plot_frame
-ordered_bpopf <- mutate(ordered_bpopf, rank = NA)
-for (i in 1:length(bpo_boundfrac_traj)) {
-  float_frame <-
-    filter(bin_po_plot_frame, Trajectory == (order(bpo_boundfrac_traj)[i]))
-  ordered_bpopf[((i - 1) * nrow(float_frame) + 1):(i * nrow(float_frame)), 1:3] <-
-    float_frame
-  ordered_bpopf[((i - 1) * nrow(float_frame) + 1):(i * nrow(float_frame)), 4] <-
-    i
-}
-
-obpo_plot <- ggplot(data = ordered_bpopf) +
-  geom_tile(aes(
-    x = time,
-    y = rank,
-    color = is_periph,
-    fill = is_periph
-  ),
-  position = "dodge") +
-  theme(legend.position = "none") +
-  scale_colour_viridis() +
-  scale_fill_viridis() +
-  comtheme
-
-print(obpo_plot)
-
-bpo_boundfrac_time <- c()
-for (i in 1:length(unique(bin_po_plot_frame[, 2]))) {
-  bpo_boundfrac_time[i] <-
-    mean(bin_po_plot_frame[(bin_po_plot_frame[, 2] == unique(bin_po_plot_frame[, 2])[i]), 3])
-}
-
-bpobf_time_frame <-
-  data.frame(bound_frac = bpo_boundfrac_time, time = c((1:length(bpo_boundfrac_time)) * (time_interval * size_of_bin)))
-
-ggplot(data = bpobf_time_frame) +
-  stat_smooth(aes(x = time, y = bound_frac * 100)) +
-  geom_point(aes(x = time, y = bound_frac * 100), alpha = 0.5) +
-  coord_cartesian(ylim = c(0, 100)) +
-  comtheme +
-  ylab("% of Trajectories at the periphery") +
-  xlab("time (s)")
 ```
 
 
@@ -369,7 +448,7 @@ and merge
 
 ##Dependent on chunk1
 
-```{r, echo = F, message = F}
+```{r MSD, echo=F, message=FALSE}
 for (i in 1:length(sim_list)) {
   if (i == 1) {
     msd_list <- vector(mode = "list", length = length(sim_list))
@@ -377,11 +456,10 @@ for (i in 1:length(sim_list)) {
   sl_len <- length(sim_list[[i]][, 1])
   msd_list[[i]] <- sim_list[[i]][((sl_len - 199):sl_len), ]
 }
-curwd <- getwd() %>% strsplit("/") %>% unlist()
-curwd <- curwd[length(curwd)]
 
-simMSD(msd_list, curwd)
-kurzplot(curwd)
+
+simMSD(msd_list, list_source_wd)
+kurzplot(list_source_wd)
 ```
 
 
@@ -389,7 +467,7 @@ kurzplot(curwd)
 ##chunk5, repositioning
 ##
 
-```{r}
+```{r Repositioning}
 Repos_List <- d2_list
 sim_lin()
 
@@ -420,7 +498,7 @@ grid.arrange(velo_plot,time_plot,mdt_plot,mdd_plot)
 
 ##Dependent on
 
-```{r}
+```{r Clusters}
 #randomize simlist into two pairwise lists
 
 d2_list_length <- length(d2_list)
@@ -430,5 +508,52 @@ rand_d2 <- seq(1,d2_list_length,1)
 #peroform cluster component analysis on the two lists in a pairwise fashion
 
 ```
+
+##chunck animate
+
+#dependent on d2_list
+
+```{r Animate}
+setwd("../images")
+
+save_product = TRUE
+
+fname = list_source_wd
+
+d2len <- length(d2_list)
+d2len = 25
+d2nrow <- nrow(d2_list[[1]])
+d2nrow = 10000
+d2ncol <- ncol(d2_list[[1]])
+
+big_float_mat <- matrix(ncol = d2ncol + 1, nrow = d2nrow * d2len)
+
+for(i in 1:d2len){
+  big_float_mat[((i-1) * d2nrow + 1) : (i * d2nrow), -(d2ncol+1)] <- d2_list[[i]][1:d2nrow,1:d2ncol]
+  big_float_mat[((i-1) * d2nrow + 1) : (i * d2nrow), d2ncol+1] <-
+     rep(i,d2nrow)
+  
+}
+
+float_frame <- as.data.frame(big_float_mat)
+
+colnames(float_frame) <- c(colnames(d2_list[[1]]),"ID")
+
+traj_anim <- ggplot(data=float_frame,aes(x=time,y=y,group = ID, color = ID))+
+  coord_cartesian(ylim = c(-5,5))+
+  geom_path(alpha = 0.25, size = 1)+
+  geom_point(alpha = 0.5)+
+  comtheme+
+  scale_color_viridis(discrete = F)+
+  scale_fill_viridis(discrete = F)+
+  transition_reveal(time)
+
+if (save_product){
+  anim_save(filename = paste(fname,".gif",sep=""),animaion = traj_anim, path = ".")
+}
+
+```
+
+
 
 

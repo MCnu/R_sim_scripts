@@ -1,7 +1,7 @@
 
 
 simMSD <- function(sim_list, fileID, taus=100, SILENCE = T, 
-                   output_dir = "C:/USERS/MCS/DESKTOP/PULLS/R_SIM_SCRIPTS/data/ANALYTICAL_ENVIRONMENT/calculated_MSD"){
+                   output_dir = paste(pull_dir,"data/ANALYTICAL_ENVIRONMENT/calculated_MSD",sep="")){
   
   for(i in 1:length(sim_list)){
     DF <- as.data.frame(sim_list[i])
