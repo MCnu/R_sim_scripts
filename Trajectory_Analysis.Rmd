@@ -97,7 +97,7 @@ if (Debuffer == T){
   
   
   shist_plot <- ggplot(data=start_frame)+
-    geom_histogram(aes(x=rad), binwidth = .01)+
+    geom_histogram(aes(x=rad), bins = 10)+
     comtheme+
     labs(title = "Start Position Radii")
   
@@ -107,12 +107,12 @@ if (Debuffer == T){
     labs(title = "Start Positions")
   
   sx_plot <- ggplot(data = start_frame)+
-    geom_histogram(aes(x=x), binwidth = 0.01)+
+    geom_histogram(aes(x=x), bins = 10)+
     comtheme+
     labs(title = "Start X")
   
   sy_plot <- ggplot(data = start_frame)+
-    geom_histogram(aes(x=y), binwidth = 0.01)+
+    geom_histogram(aes(x=y), bins = 10)+
     comtheme+
     labs(title = "Start Y")
   
@@ -126,11 +126,8 @@ if (Debuffer == T){
   
   end_frame <- data.frame(ID = seq(1,length(end_x),1),x = end_x, y = end_y, rad = sqrt(end_x^2 + end_y^2))
   
-  #plot(density(end_frame$rad, from = 0, to = 1))
-  
- 
   ehist_plot <- ggplot(data=end_frame)+
-    geom_histogram(aes(x=rad), binwidth = .01)+
+    geom_histogram(aes(x=rad), bins = 10)+
     comtheme+
     labs(title = "End Position Radii")
   
@@ -140,12 +137,12 @@ if (Debuffer == T){
     labs(title = "End Positions")
   
   ex_plot <- ggplot(data = end_frame)+
-    geom_histogram(aes(x=x), binwidth = 0.01)+
+    geom_histogram(aes(x=x), bins = 10)+
     comtheme+
     labs(title = "End X")
   
   ey_plot <- ggplot(data = end_frame)+
-    geom_histogram(aes(x=y), binwidth = 0.01)+
+    geom_histogram(aes(x=y), bins = 10)+
     comtheme+
     labs(title = "End Y")
 
@@ -162,7 +159,7 @@ if (Debuffer == T){
                             y = start_y, rad = sqrt(start_x^2 + start_y^2))
   
   shist_plot <- ggplot(data=start_frame)+
-    geom_histogram(aes(x=rad), binwidth = .01)+
+    geom_histogram(aes(x=rad), bins = 10)+
     comtheme+
     labs(title = "Start Position Radii")
   
@@ -172,12 +169,12 @@ if (Debuffer == T){
     labs(title = "Start Positions")
   
   sx_plot <- ggplot(data = start_frame)+
-    geom_histogram(aes(x=x), binwidth = 0.01)+
+    geom_histogram(aes(x=x), bins = 10)+
     comtheme+
     labs(title = "Start X")
   
   sy_plot <- ggplot(data = start_frame)+
-    geom_histogram(aes(x=y), binwidth = 0.01)+
+    geom_histogram(aes(x=y), bins = 10)+
     comtheme+
     labs(title = "Start Y")
   
@@ -191,10 +188,8 @@ if (Debuffer == T){
   
   end_frame <- data.frame(ID = seq(1,length(end_x),1),x = end_x, y = end_y, rad = sqrt(end_x^2 + end_y^2))
   
-  #plot(density(end_frame$rad, from = 0, to = 1))
-  
   ehist_plot <- ggplot(data=end_frame)+
-    geom_histogram(aes(x=rad), binwidth = .01)+
+    geom_histogram(aes(x=rad), bins = 10)+
     comtheme+
     labs(title = "End Position Radii")
   
@@ -204,12 +199,12 @@ if (Debuffer == T){
     labs(title = "End Positions")
   
   ex_plot <- ggplot(data = end_frame)+
-    geom_histogram(aes(x=x), binwidth = 0.01)+
+    geom_histogram(aes(x=x), bins = 10)+
     comtheme+
     labs(title = "End X")
   
   ey_plot <- ggplot(data = end_frame)+
-    geom_histogram(aes(x=y), binwidth = 0.01)+
+    geom_histogram(aes(x=y))+
     comtheme+
     labs(title = "End Y")
 }
@@ -381,7 +376,7 @@ if (bin_to_10sec){
   
   time_nrow <- length(unique(po_plot_frame$time))
   
-  time_nrow = 5000
+  if(time_nrow > 5000){time_nrow = 5000}
   
   float_time_interval <- po_plot_frame$time[2] - po_plot_frame$time[1]
   
@@ -439,6 +434,8 @@ if (bin_to_10sec){
     xlab("time (s)")
   
 }
+
+print(list_source_wd)
 
 ```
 
@@ -539,17 +536,18 @@ float_frame <- as.data.frame(big_float_mat)
 
 colnames(float_frame) <- c(colnames(d2_list[[1]]),"ID")
 
-traj_anim <- ggplot(data=float_frame,aes(x=time,y=y,group = ID, color = ID))+
-  coord_cartesian(ylim = c(-5,5))+
+traj_anim <- ggplot(data=float_frame,aes(x=time,y=y,group = ID))+
+  coord_cartesian(ylim = c(-30,30))+
   geom_path(alpha = 0.25, size = 1)+
-  geom_point(alpha = 0.5)+
+  #geom_point(alpha = 0.5)+
   comtheme+
   scale_color_viridis(discrete = F)+
   scale_fill_viridis(discrete = F)+
-  transition_reveal(time)
+  labs(x = "time (s)", y = "Simulated Y position (micron)")
 
 if (save_product){
-  anim_save(filename = paste(fname,".gif",sep=""),animaion = traj_anim, path = ".")
+  #anim_save(filename = paste(fname,".gif",sep=""),animaion = traj_anim, path = ".")
+  ggsave(paste(fname,".png",sep=""),width = 30, height = 15, units = "cm")
 }
 
 ```
