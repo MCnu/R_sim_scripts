@@ -1,8 +1,13 @@
 
+comtheme <- theme_bw() +
+  theme(
+    text = element_text(color = "#545454", size = 18),
+    legend.position = "none"
+  )
 
 kurzplot <- function (ID, SILENCE = F, linearized = F, 
-                      msd_input_dir = paste(pull_dir,"data/ANALYTICAL_ENVIRONMENT/CALCULATED_MSD/",sep = ""),
-                      merge_output_dir = paste(pull_dir,"data/ANALYTICAL_ENVIRONMENT/MSD_merged/",sep = "")) {
+                      msd_input_dir = paste(dataset_dir,"trajectory_r_data/analytical_environment/calculated_MSD",sep = ""),
+                      merge_output_dir = paste(dataset_dir,"trajectory_r_data/analytical_environment/MSD_merged/",sep = "")) {
   library(tidyverse)
   library(stats)
   library(data.table)
@@ -95,7 +100,7 @@ kurzplot <- function (ID, SILENCE = F, linearized = F,
            subtitle = ID) +
       #annotate("text", x = 4, y= 0.08, label = paste("italic(R) ^ 2 ==", R), parse = TRUE, size = 10)+
       #annotate("text", x = 4, y = 0.09, label = paste("MSD = ", G , "x Tau^", A), size = 10)+
-      theme()
+      comtheme
     
     #png(paste(ID, ".png", sep=""), height = 1500, width = 1500, res = 300)
     print(cplot)

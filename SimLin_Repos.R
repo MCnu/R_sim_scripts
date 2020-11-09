@@ -1,4 +1,4 @@
-#SIMULATED REPOSITIONING ANALYSIS
+# SIMULATED REPOSITIONING ANALYSIS
 
 sim_lin <-
   function(delta_start = "follow",
@@ -12,24 +12,22 @@ sim_lin <-
            summarize = T,
            frame_length = 0.5,
            contact = "first") {
-    #create LUT
+    # create LUT
     LUT_ttp_vec <- c()
     for (i in 1:length(Repos_List)) {
       float_mat <- Repos_List[[i]]
-      
-      #(nrow(float_mat[float_mat[,"D2O"] > peri_rad,]))
-      float_ttp <- float_mat[float_mat[,"D2O"] > peri_rad,]
-      if(!is.null(nrow(float_ttp))){
-        if(nrow(float_ttp) >= 1){
-          LUT_ttp_vec[i] <- float_ttp[1,"time"]
-        }else{
+
+      # (nrow(float_mat[float_mat[,"D2O"] > peri_rad,]))
+      float_ttp <- float_mat[float_mat[, "D2O"] > peri_rad, ]
+      if (!is.null(nrow(float_ttp))) {
+        if (nrow(float_ttp) >= 1) {
+          LUT_ttp_vec[i] <- float_ttp[1, "time"]
+        } else {
           LUT_ttp_vec[i] <- NA
         }
-      }else{
+      } else {
         LUT_ttp_vec[i] <- NA
       }
-      
-      
     }
 
     LUT_ttpv_logic <-
@@ -47,7 +45,7 @@ sim_lin <-
       )
     DIRECT_DF <- data.frame()
     pridist_vec <- c()
-    
+
     for (i in 1:length(LUT_ttpv_logic)) {
       if (velo == T) {
         if (i == 1) {
@@ -65,8 +63,8 @@ sim_lin <-
       float_mat <- Repos_List[[i]]
       float_mat <- float_mat[float_mat[, 4] <= LUT_ttp_vec[i], ]
       step_count <- nrow(float_mat)
-      #print(step_count)
-      #print(precon_float_direct_matrix)
+      # print(step_count)
+      # print(precon_float_direct_matrix)
       float_direct_frame <- data.frame()
       if (delta_start == "follow") {
         follow_float_frame <- data.frame()
@@ -75,32 +73,31 @@ sim_lin <-
           prip <- float_mat[(s - 1), ]
           secp <- float_mat[s, ]
           pridist <-
-            sqrt(((prip[1]) - (endp[1])) ^ 2 + ((prip[2]) - (endp[2])) ^ 2)
+            sqrt(((prip[1]) - (endp[1]))^2 + ((prip[2]) - (endp[2]))^2)
           secdist <-
-            sqrt(((secp[1]) - (endp[1])) ^ 2 + ((secp[2]) - (endp[2])) ^ 2)
+            sqrt(((secp[1]) - (endp[1]))^2 + ((secp[2]) - (endp[2]))^2)
           interdist <-
-            sqrt(((prip[1]) - (secp[1])) ^ 2 + ((prip[2]) - (secp[2])) ^ 2)
+            sqrt(((prip[1]) - (secp[1]))^2 + ((prip[2]) - (secp[2]))^2)
           delta_dist_to_end <- unlist(pridist - secdist)
           if (s == 2) {
             pridist_vec <- c(pridist_vec, as.numeric(pridist))
           }
-          #positive means it used to be further away
+          # positive means it used to be further away
           if (pridist != secdist) {
-            #law of cosines, baby
+            # law of cosines, baby
             deviation_angle <-
-              unlist(acos((pridist ^ 2 + interdist ^ 2 - secdist ^ 2) / (2 * pridist *
-                                                                           interdist)
-              ))
-            #print(deviation_angle)
+              unlist(acos((pridist^2 + interdist^2 - secdist^2) / (2 * pridist *
+                interdist)))
+            # print(deviation_angle)
             if (is.nan(deviation_angle)) {
               deviation_angle <- 0
             }
           }
           if (pridist == secdist) {
-            deviation_angle = 0
+            deviation_angle <- 0
           }
-          
-          
+
+
           follow_float_frame <-
             rbind(
               follow_float_frame,
@@ -112,23 +109,17 @@ sim_lin <-
                 delta_theta = deviation_angle
               )
             )
-          
         }
-        
+
         float_direct_frame <-
           rbind(float_direct_frame, follow_float_frame)
-        
+
         if (velo == T) {
-          #vector of velocities derived from the D2P and time per frame (0.21)
+          # vector of velocities derived from the D2P and time per frame (0.21)
           tot_velo_vec <-
-            c(tot_velo_vec, (float_mat[2:nrow(float_mat), "D2P"] * 1/(float_mat[2,"time"]-float_mat[1,"time"])))
-          
-          
-          
-          
-          
+            c(tot_velo_vec, (float_mat[2:nrow(float_mat), "D2P"] / (float_mat[2, "time"] - float_mat[1, "time"])))
         }
-        
+
         if (summarize == T) {
           summ_frame <-
             rbind(
@@ -138,13 +129,12 @@ sim_lin <-
                 cont_num = "First",
                 mean_delta_dist = mean(float_direct_frame$delta_dist),
                 mean_delta_theta = mean(float_direct_frame$delta_theta),
-                time = step_count * 0.21
+                time = step_count * (float_mat[2,"time"] - float_mat[1,"time"])
               )
             )
         }
-        
       }
-      
+
       DIRECT_DF <- rbind(DIRECT_DF, float_direct_frame)
     }
     if (JDD == T) {
@@ -175,39 +165,38 @@ sim_lin <-
           )
         sum_filt <- rbind(sum_filt, prebind, posbind)
       }
-      
+
       jplot <- ggplot() +
         geom_violin(data = JDD_DF, aes(x = cID, y = displacement, color = position)) +
         geom_hline(yintercept = sum_u3_d2p[3]) +
         geom_point(data = sum_filt, aes(x = cID, y = med_dis, color = position))
-      
-      #print(jplot)
-      
+
+      # print(jplot)
     }
     if (delta_start == "follow") {
       global_direct_sim <<- DIRECT_DF
       dplot <- ggplot() +
         coord_cartesian(ylim = c(0, 3.14), xlim = c(-0.5, 0.5)) +
         geom_point(data = DIRECT_DF, aes(x = delta_dist, y = delta_theta))
-      
-      #print(dplot)
-      #print("pridist_vec stored as pdvec")
+
+      # print(dplot)
+      # print("pridist_vec stored as pdvec")
       pdvec <<- pridist_vec
     }
     if (velo == T) {
       tvv <<- tot_velo_vec
-      #print(plot(density(tot_velo_vec)))
+      # print(plot(density(tot_velo_vec)))
     }
-    
+
     if (summarize == T) {
       global_summary_sim <<- summ_frame
       sumplot <- ggplot() +
         coord_cartesian(xlim = c(-0.01, 0.01), ylim = c(0, 3.14)) +
-        geom_text(data = summ_frame,
-                  aes(x  = mean_delta_dist, y = mean_delta_theta, label = time))
-      
-      #print(sumplot)
+        geom_text(
+          data = summ_frame,
+          aes(x = mean_delta_dist, y = mean_delta_theta, label = time)
+        )
+
+      # print(sumplot)
     }
   }
-
-
