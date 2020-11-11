@@ -65,15 +65,14 @@ mmsdplot <-
       mplot <- mplot +
         scale_fill_manual(values = c("#66A53D", "#52307c")) +
         scale_color_manual(values = c("#66A53D", "#52307c"))
-        #scale_fill_manual(values = c("#52307c", "#BC6C45")) +
-        #scale_color_manual(values = c("#52307c", "#BC6C45"))
-        #scale_fill_manual(values = c("blue", "#52307c")) +
-        #scale_color_manual(values = c("blue", "#52307c"))
-        
+      # scale_fill_manual(values = c("#52307c", "#BC6C45")) +
+      # scale_color_manual(values = c("#52307c", "#BC6C45"))
+      # scale_fill_manual(values = c("blue", "#52307c")) +
+      # scale_color_manual(values = c("blue", "#52307c"))
     } else if (length(IDarray) == 3) {
       mplot <- mplot +
-        #scale_fill_manual(values = c("#BC6C45", "#66A53D", "#52307c")) +
-        #scale_color_manual(values = c("#BC6C45", "#66A53D", "#52307c"))
+        # scale_fill_manual(values = c("#BC6C45", "#66A53D", "#52307c")) +
+        # scale_color_manual(values = c("#BC6C45", "#66A53D", "#52307c"))
         scale_fill_manual(values = c("blue", "orange", "#52307c")) +
         scale_color_manual(values = c("blue", "orange", "#52307c"))
     } else {
@@ -91,10 +90,10 @@ mmsdplot <-
           linetype = "dashed"
         )
     }
-    if (plot_legend == T){
+    if (plot_legend == T) {
       mplot <- mplot +
         theme(legend.position = "right")
-    }else{
+    } else {
       mplot <- mplot +
         theme(legend.position = "none")
     }

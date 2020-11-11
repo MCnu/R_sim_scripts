@@ -6,8 +6,7 @@ author: "Michael Chas Sumner"
 
 ## chunk0.1, setup packages and root.dir
 
-```{r setup, include = F}
-
+```{r setup, echo=F,include = F}
 pull_dir <- "~/PULLS/R_sim_scripts/"
 
 dataset_dir <- "~/DataSets/"
@@ -56,13 +55,9 @@ opts_knit$set(root.dir = paste(file_dir, sep = ""))
 
 ## chunk1, create list of trajectories as matrices
 
-## if Debuffer = True, the matrices will be cropped to the size defined in
-debuff_end and debuff_start
 
-```{r, echo=F}
+```{r sim_list_chunk, echo=F}
 
-# Controls wheter you cut off the first specified number of steps for each trajectory
-Debuffer <- F
 remove_incomplete_trajectoreies <- T
 expected_nrow <- 6000
 
@@ -84,32 +79,25 @@ print(list_source_wd)
 
 for (i in 1:length(list.files())) {
   if (i == 1) {
-    
     sim_list <- vector(mode = "list", length = length(list.files()))
-  
   }
-  
-  sim_list[[i]] <- as.matrix(fread(list.files()[i]))
 
+  sim_list[[i]] <- as.matrix(fread(list.files()[i]))
 }
 
 if (remove_incomplete_trajectoreies == T) {
-  
   cleaned_list <- list()
   clean_position <- 0
-  
+
   for (i in 1:length(sim_list)) {
-    
     tail_check <- sim_list[[i]][nrow(sim_list[[i]]), ]
-    
+
     if (is.na(tail_check[1]) | is.nan(tail_check[1]) | is.na(tail_check[2]) | is.nan(tail_check[2]) | sqrt(tail_check[1]^2 + tail_check[2]^2) > 1 | nrow(sim_list[[i]]) < expected_nrow) {
-      
       print("NA NaN or Error detected")
       next
-      
     } else {
       clean_position <- clean_position + 1
-      
+
       cleaned_list[[clean_position]] <- sim_list[[i]]
     }
   }
@@ -195,7 +183,7 @@ origin (aka radius)
 
 ##Dependent on chunk1
 
-```{r, echo = F}
+```{r d2_list_chunk, echo=F}
 
 time_interval <- 0.21
 
@@ -344,29 +332,29 @@ pat_plot <- ggplot(data = po_avg_time_frame) +
 
 traj_vec <- unique(nompp_frame$Trajectory)
 
-#TODO: Preallocate when not lazy 
+# TODO: Preallocate when not lazy
 vpat_frame <- data.frame(ID = numeric(), peri_perc = numeric())
 
-for(i in 1:length(unique(nompp_frame$Trajectory))){
+for (i in 1:length(unique(nompp_frame$Trajectory))) {
   float_traj <- traj_vec[i]
-  float_frame <- nompp_frame[nompp_frame$Trajectory == float_traj,]
-  vpat_frame[i,1]<-float_traj
-  vpat_frame[i,2]<-sum(float_frame$is_periph)/nrow(float_frame)
+  float_frame <- nompp_frame[nompp_frame$Trajectory == float_traj, ]
+  vpat_frame[i, 1] <- float_traj
+  vpat_frame[i, 2] <- sum(float_frame$is_periph) / nrow(float_frame)
 }
 
 vpat_plot <- ggplot(data = vpat_frame) +
-  coord_cartesian(ylim = c(0,100))+
-  geom_violin(aes(y = peri_perc * 100, x = "SIM"), fill = "yellow")+
-  geom_errorbar(aes(ymax=mean(peri_perc)*100+sd(peri_perc)*100, ymin = mean(peri_perc)*100-sd(peri_perc)*100, x = "SIM"), width = 0.5)+
-  geom_point(aes(y=mean(peri_perc)*100, x= "SIM"), color = "white", size = 4, shape = 19)+
-  ylab("peripheral (% of time)")+
+  coord_cartesian(ylim = c(0, 100)) +
+  geom_violin(aes(y = peri_perc * 100, x = "SIM"), fill = "yellow") +
+  geom_errorbar(aes(ymax = mean(peri_perc) * 100 + sd(peri_perc) * 100, ymin = mean(peri_perc) * 100 - sd(peri_perc) * 100, x = "SIM"), width = 0.5) +
+  geom_point(aes(y = mean(peri_perc) * 100, x = "SIM"), color = "white", size = 4, shape = 19) +
+  ylab("peripheral (% of time)") +
   comtheme
 
 print(list_source_wd)
 
 if (print_plots) {
   print(po_plot)
-  print(vpat_plot)
+  # print(vpat_plot)
   print(pat_plot)
 }
 ```
@@ -398,10 +386,7 @@ kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 
 ```{r multimsd, echo = F, message = F}
 
-mmsdplot(c(uap,gup))
-
-
-
+mmsdplot(c(uap, gup))
 ```
 
 ##chunk5, repositioning
@@ -436,16 +421,49 @@ grid.arrange(velo_plot, time_plot, mdt_plot, mdd_plot)
 
 ##chunk 6, clusters
 
-##Dependent on
+##Dependent on d2_list
 
 ```{r Clusters}
-# randomize simlist into two pairwise lists
+# randomize the d2_list into two pairwise lists
+
+set.seed(57343)
 
 d2_list_length <- length(d2_list)
 
-rand_d2 <- seq(1, d2_list_length, 1)
+rand_d2 <- sample.int(d2_list_length)
 
-# peroform cluster component analysis on the two lists in a pairwise fashion
+pri_d2_IDs <- rand_d2[c(1:(d2_list_length / 2))]
+
+sec_d2_IDs <- rand_d2[c((d2_list_length / 2 + 1):d2_list_length)]
+
+# perform cluster component analysis on the two lists in a pairwise fashion
+
+# Function
+# args: two lists of x/y positions, must be same length
+# output: list of individual step distances
+
+# initialize arg_lists
+
+pri_list <- d2_list[pri_d2_IDs]
+
+pri_xy_list <- lapply(1:length(pri_list), matrix, data = NA, ncol = 2, nrow = nrow(pri_list[[1]]))
+
+for (i in 1:length(pri_list)) {
+  pri_xy_list[1] <- pri_list[, c("x", "y")]
+}
+
+pri_list[[]][, c(1, 2)]
+
+
+
+
+# Funciton
+# args: two lists of x/y positions, must be same length
+# output: mean delta theta for each trajectory set
+
+# Function
+# args: two lists of step magnitudes of equal length to compare via cor()
+# output: data.frame of each trajectory pair cor()
 ```
 
 ##chunck animate

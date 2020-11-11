@@ -129,7 +129,7 @@ sim_lin <-
                 cont_num = "First",
                 mean_delta_dist = mean(float_direct_frame$delta_dist),
                 mean_delta_theta = mean(float_direct_frame$delta_theta),
-                time = step_count * (float_mat[2,"time"] - float_mat[1,"time"])
+                time = step_count * (float_mat[2, "time"] - float_mat[1, "time"])
               )
             )
         }
