@@ -2,7 +2,8 @@
 
 sim_lin <-
   function(delta_start = "follow",
-           time_cutoff = 25,
+           time_min = 25,
+           time_max = 450,
            peri_rad = 0.85,
            velo = T,
            JDD = F,
@@ -10,7 +11,6 @@ sim_lin <-
            vacf = T,
            ctrl_summ = F,
            summarize = T,
-           frame_length = 0.5,
            contact = "first") {
     # create LUT
     LUT_ttp_vec <- c()
@@ -31,7 +31,7 @@ sim_lin <-
     }
 
     LUT_ttpv_logic <-
-      (LUT_ttp_vec > time_cutoff & !is.na(LUT_ttp_vec))
+      (LUT_ttp_vec > time_min & !is.na(LUT_ttp_vec))
     print("Fraction of used trajectories:")
     print(mean(LUT_ttpv_logic))
 
@@ -175,12 +175,6 @@ sim_lin <-
     }
     if (delta_start == "follow") {
       global_direct_sim <<- DIRECT_DF
-      dplot <- ggplot() +
-        coord_cartesian(ylim = c(0, 3.14), xlim = c(-0.5, 0.5)) +
-        geom_point(data = DIRECT_DF, aes(x = delta_dist, y = delta_theta))
-
-      # print(dplot)
-      # print("pridist_vec stored as pdvec")
       pdvec <<- pridist_vec
     }
     if (velo == T) {

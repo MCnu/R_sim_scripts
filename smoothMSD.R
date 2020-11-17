@@ -1,3 +1,7 @@
+library(tidyverse)
+library(stats)
+library(data.table)
+library(ggplot2)
 
 comtheme <- theme_bw() +
   theme(
@@ -8,10 +12,7 @@ comtheme <- theme_bw() +
 kurzplot <- function(ID, SILENCE = F, linearized = F,
                      msd_input_dir = paste(dataset_dir, "trajectory_r_data/analytical_environment/calculated_MSD", sep = ""),
                      merge_output_dir = paste(dataset_dir, "trajectory_r_data/analytical_environment/MSD_merged/", sep = "")) {
-  library(tidyverse)
-  library(stats)
-  library(data.table)
-  library(ggplot2)
+
   setwd(msd_input_dir)
   filenames <- list.files(pattern = ID)
   len <- length(filenames)

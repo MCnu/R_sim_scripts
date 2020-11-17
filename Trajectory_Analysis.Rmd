@@ -1,14 +1,19 @@
 ---
-title: "Figures"
-output: html_document
+title: "Analysis for Trajectories"
 author: "Michael Chas Sumner"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-## chunk0.1, setup packages and root.dir
 
 ```{r setup, echo=F,include = F}
+
+# pulled_git_directory
+
 pull_dir <- "~/PULLS/R_sim_scripts/"
 
+# Your dataset directory
 dataset_dir <- "~/DataSets/"
 
 file_dir <- paste(dataset_dir, "/d201102/", sep = "")
@@ -37,6 +42,8 @@ source(paste(pull_dir, "SimLin_Repos.R", sep = ""), echo = FALSE)
 
 source(paste(pull_dir, "multimsd.R", sep = ""), echo = FALSE)
 
+source(paste(pull_dir, "SimClustFuncs.R", sep = ""), echo = FALSE)
+
 uap <- "U3alonePlus"
 gup <- "G1atU3Plus"
 
@@ -56,26 +63,24 @@ opts_knit$set(root.dir = paste(file_dir, sep = ""))
 ## chunk1, create list of trajectories as matrices
 
 
-```{r sim_list_chunk, echo=F}
+```{r sim_list_chunk, echo=F, warning=F}
 
 remove_incomplete_trajectoreies <- T
 expected_nrow <- 6000
 
-list.files()
+# print(paste("trajectories in directory: ", list.files(), sep = ""))
 
 # specify the directory containing trajectory .csv files
 
 list_source_wd <- list.files()[4]
 
-print(list_source_wd)
+print(paste("trajectories used: ", list_source_wd, sep = ""))
 setwd(list_source_wd)
 
 list_source_wd <- getwd() %>%
   strsplit("/") %>%
   unlist()
 list_source_wd <- list_source_wd[length(list_source_wd)]
-
-print(list_source_wd)
 
 for (i in 1:length(list.files())) {
   if (i == 1) {
@@ -101,7 +106,7 @@ if (remove_incomplete_trajectoreies == T) {
       cleaned_list[[clean_position]] <- sim_list[[i]]
     }
   }
-  print(paste(length(cleaned_list), "/", length(sim_list)), sep = "")
+  print(paste(length(cleaned_list), "/", length(sim_list), " trajectories used.", sep = ""))
   sim_list <- cleaned_list
 }
 
@@ -178,10 +183,8 @@ grid.arrange(sx_plot, sy_plot, ex_plot, ey_plot)
 ```
 
 
-## chunk3, create a more robust data set w/ dist to start, to previous, and to 
-origin (aka radius)
-
-##Dependent on chunk1
+## Create a more robust data set with relative distances
+#and ensure you have a plasubile d2o distribution
 
 ```{r d2_list_chunk, echo=F}
 
@@ -234,10 +237,9 @@ plot(density(tot_d2o, from = 0, to = max(tot_d2o)))
 
 
 
-## Chunk 4, visualize frequency of peripheral occupancy
+## Visualize Peripheral Occupancy
 
-## Dependent on chunk3
-```{r, echo = F}
+```{r peripheral_occupancy, echo=F}
 
 print_plots <- TRUE
 
@@ -350,8 +352,6 @@ vpat_plot <- ggplot(data = vpat_frame) +
   ylab("peripheral (% of time)") +
   comtheme
 
-print(list_source_wd)
-
 if (print_plots) {
   print(po_plot)
   # print(vpat_plot)
@@ -360,12 +360,7 @@ if (print_plots) {
 ```
 
 
-## create list of last 200 steps in trajectory, quantify MSD, save individual MSD, plot MSD, 
-and save merge MSD for subsequent plotting
-
-##Dependent on chunk1
-
-```{r MSD, echo=F, message=FALSE}
+```{r MSD, eval=FALSE, message=FALSE, include=FALSE}
 
 msd_dir <- "~/DataSets/trajectory_r_data/analytical_environment/calculated_MSD"
 merge_dir <- "~/DataSets/trajectory_r_data/analytical_environment/MSD_merged"
@@ -384,15 +379,12 @@ simMSD(msd_list, list_source_wd, output_dir = msd_dir)
 kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 ```
 
-```{r multimsd, echo = F, message = F}
+```{r multimsd, eval=FALSE, message=FALSE, include=FALSE}
 
 mmsdplot(c(uap, gup))
 ```
 
-##chunk5, repositioning
-##
-
-```{r Repositioning}
+```{r Repositioning,eval=FALSE, message=FALSE, include=FALSE}
 Repos_List <- d2_list
 sim_lin()
 
@@ -418,23 +410,35 @@ mdd_plot <- ggplot(data = global_direct_sim) +
 grid.arrange(velo_plot, time_plot, mdt_plot, mdd_plot)
 ```
 
+##Cluster analysis
 
-##chunk 6, clusters
-
-##Dependent on d2_list
-
-```{r Clusters}
+```{r Clusters, echo=F}
 # randomize the d2_list into two pairwise lists
+
+source(paste(pull_dir, "SimClustFuncs.R", sep = ""), echo = FALSE)
 
 set.seed(57343)
 
 d2_list_length <- length(d2_list)
+
+last_200_list <- vector(mode = "list", length = d2_list_length)
+
+for (i in 1:d2_list_length) {
+  sl_len <- length(d2_list[[i]][, 1])
+  last_200_list[[i]] <- d2_list[[i]][((sl_len - 199):sl_len), ]
+}
 
 rand_d2 <- sample.int(d2_list_length)
 
 pri_d2_IDs <- rand_d2[c(1:(d2_list_length / 2))]
 
 sec_d2_IDs <- rand_d2[c((d2_list_length / 2 + 1):d2_list_length)]
+
+plen <- length(pri_d2_IDs)
+
+slen <- length(sec_d2_IDs)
+
+if (plen != slen) stop("d2_list was split improperly or is odd")
 
 # perform cluster component analysis on the two lists in a pairwise fashion
 
@@ -444,33 +448,115 @@ sec_d2_IDs <- rand_d2[c((d2_list_length / 2 + 1):d2_list_length)]
 
 # initialize arg_lists
 
-pri_list <- d2_list[pri_d2_IDs]
+pri_list <- last_200_list[pri_d2_IDs]
+sec_list <- last_200_list[sec_d2_IDs]
 
-pri_xy_list <- lapply(1:length(pri_list), matrix, data = NA, ncol = 2, nrow = nrow(pri_list[[1]]))
+pri_xy_list <- lapply(1:plen, matrix, data = NA, ncol = 2, nrow = nrow(pri_list[[1]]))
+sec_xy_list <- lapply(1:slen, matrix, data = NA, ncol = 2, nrow = nrow(sec_list[[1]]))
 
-for (i in 1:length(pri_list)) {
-  pri_xy_list[1] <- pri_list[, c("x", "y")]
+
+for (i in 1:plen) {
+  pri_xy_list[[i]] <- pri_list[[i]][, c("x", "y")]
+  sec_xy_list[[i]] <- sec_list[[i]][, c("x", "y")]
 }
 
-pri_list[[]][, c(1, 2)]
+
+
+id_matlist <- sim_clust_interdist(pri_xy_list, sec_xy_list)
+
+mean_id_mat <- matrix(data = NA, nrow = length(id_matlist), ncol = 2)
+
+for (i in 1:length(id_matlist)) {
+  mean_id_mat[i, ] <- c(i, mean(id_matlist[[i]][, 1]))
+}
+
+mean_id_frame <- as.data.frame(mean_id_mat)
+
+colnames(mean_id_frame) <- c("Path_ID", "interdist")
+
+interdist_plot <- ggplot(data = mean_id_frame) +
+  geom_jitter(aes(x = "Sim", y = interdist), color = "blue", height = 0, width = 0.1) +
+  coord_cartesian(ylim = c(0, 2)) +
+  geom_point(aes(x = "Sim", y = mean(interdist)), size = 5) +
+  geom_errorbar(aes(x = "Sim", ymin = mean(interdist) - sd(interdist), ymax = mean(interdist) + sd(interdist)), width = 0.1) +
+  comtheme
 
 
 
 
-# Funciton
-# args: two lists of x/y positions, must be same length
-# output: mean delta theta for each trajectory set
 
 # Function
 # args: two lists of step magnitudes of equal length to compare via cor()
 # output: data.frame of each trajectory pair cor()
+
+pri_d2p_list <- lapply(1:plen, matrix, data = NA, ncol = 1, nrow = nrow(pri_list[[1]]) - plen)
+sec_d2p_list <- lapply(1:slen, matrix, data = NA, ncol = 1, nrow = nrow(sec_list[[1]]) - slen)
+
+for (i in 1:plen) {
+  pri_d2p_list[[i]] <- pri_list[[i]][c(2:nrow(pri_list[[i]])), "D2P"]
+  sec_d2p_list[[i]] <- sec_list[[i]][c(2:nrow(sec_list[[i]])), "D2P"]
+}
+
+magcor_frame <- sim_clust_magcor(pri_d2p_list, sec_d2p_list)
+
+magcor_plot <- ggplot(data = magcor_frame) +
+  geom_jitter(aes(x = "Sim", y = mag_PCC), color = "red", height = 0, width = 0.1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  geom_point(aes(x = "Sim", y = mean(mag_PCC)), size = 5) +
+  geom_errorbar(aes(x = "Sim", ymin = mean(mag_PCC) - sd(mag_PCC), ymax = mean(mag_PCC) + sd(mag_PCC)), width = 0.1) +
+  comtheme
+
+# Funciton
+# args: primary_d2p_list, secondary_d2p_list, and interdist
+# output: mean delta theta for each trajectory pair
+
+clust_theta_list <- sim_clust_theta(pri_d2p_list, sec_d2p_list, id_matlist)
+
+ctl_len <- length(clust_theta_list)
+
+mean_clust_theta_frame <- data.frame(Pair_ID = numeric(), mean_theta = numeric())
+
+for (i in 1:ctl_len) {
+  mean_clust_theta_frame[i, ] <- c(i, mean(clust_theta_list[[i]]))
+}
+
+theta_plot <- ggplot(data = mean_clust_theta_frame) +
+  geom_jitter(aes(x = "Sim", y = mean_theta), color = "purple", height = 0, width = 0.1) +
+  geom_point(aes(x = "Sim", y = mean(mean_theta)), size = 5) +
+  geom_errorbar(aes(x = "Sim", ymin = mean(mean_theta) - sd(mean_theta), ymax = mean(mean_theta) + sd(mean_theta)), width = 0.1) +
+  coord_cartesian(ylim = c(0, 3.14)) +
+  comtheme
+
+sim_clust_comp_frame <- cbind(magcor_frame, mean_clust_theta_frame[, 2], mean_id_frame[, 2])
+
+colnames(sim_clust_comp_frame) <- c("exp", "dCorr", "Delta_Theta", "avg_Dist")
+
+# time and fraction of total trajectory time spent clustered
+
+life_frac_list <- sim_clust_lifefrac(id_matlist, time_interval)
+
+total_frac <- mean(life_frac_list[[2]][, 1])
+
+life_frame <- as.data.frame(life_frac_list[[1]]) %>%
+  mutate(ID = "Sim") %>%
+  mutate(ID_num = 19)
+colnames(life_frame) <- c("lifefrac", "exp", "ID", "ID_num")
+
+life_plot <- ggplot(data = life_frame) +
+  geom_jitter(aes(x = "Sim", y = lifefrac), color = "green", height = 0, width = 0.1) +
+  geom_point(aes(x = "Sim", y = mean(lifefrac)), size = 5) +
+  geom_errorbar(aes(x = "Sim", ymin = mean(lifefrac) - sd(lifefrac), ymax = mean(lifefrac) + sd(lifefrac)), width = 0.1) +
+  coord_cartesian(ylim = c(0, 1)) +
+  comtheme
+
+
+
+grid.arrange(interdist_plot, magcor_plot, theta_plot, life_plot)
 ```
 
-##chunck animate
 
-#dependent on d2_list
-
-```{r Animate}
+```{r Animate, echo=F}
+# dependent on d2_list
 
 save_product <- F
 
@@ -508,4 +594,5 @@ if (save_product) {
   anim_save(filename = paste(fname, ".gif", sep = ""), animaion = traj_anim, path = ".")
   # ggsave(paste(fname,".png",sep=""),width = 30, height = 15, units = "cm")
 }
+
 ```
