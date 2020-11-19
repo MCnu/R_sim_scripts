@@ -2,8 +2,8 @@
 title: "Analysis for Trajectories"
 author: "Michael Chas Sumner"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 
@@ -17,6 +17,11 @@ pull_dir <- "~/PULLS/R_sim_scripts/"
 dataset_dir <- "~/DataSets/"
 
 file_dir <- paste(dataset_dir, "/d201102/", sep = "")
+
+# set this to the raw_data directory
+root_dir <- file_dir
+
+opts_knit$set(root.dir = root_dir)
 
 library(stats)
 
@@ -52,9 +57,6 @@ comtheme <- theme_bw() +
     text = element_text(color = "#545454", size = 18),
     legend.position = "none"
   )
-
-# set this to the raw_data directory
-opts_knit$set(root.dir = paste(file_dir, sep = ""))
 ```
 
 
@@ -65,14 +67,20 @@ opts_knit$set(root.dir = paste(file_dir, sep = ""))
 
 ```{r sim_list_chunk, echo=F, warning=F}
 
-remove_incomplete_trajectoreies <- T
-expected_nrow <- 6000
 
-# print(paste("trajectories in directory: ", list.files(), sep = ""))
+
+# Parameters that matter!
+# How many rows (positions) do you expect?
+expected_nrow <- 6000
+# What is the interval of time between positions?
+time_interval <- 0.21
+
+# Do you want to remove trajectories that are not the expected length or contain
+# either NAs or NaNs?
+remove_incomplete_trajectoreies <- T
 
 # specify the directory containing trajectory .csv files
-
-list_source_wd <- list.files()[4]
+list_source_wd <- list.files()[3]
 
 print(paste("trajectories used: ", list_source_wd, sep = ""))
 setwd(list_source_wd)
@@ -97,7 +105,7 @@ if (remove_incomplete_trajectoreies == T) {
   for (i in 1:length(sim_list)) {
     tail_check <- sim_list[[i]][nrow(sim_list[[i]]), ]
 
-    if (is.na(tail_check[1]) | is.nan(tail_check[1]) | is.na(tail_check[2]) | is.nan(tail_check[2]) | sqrt(tail_check[1]^2 + tail_check[2]^2) > 1 | nrow(sim_list[[i]]) < expected_nrow) {
+    if (NA %in% sim_list[[i]] | NaN %in% sim_list[[i]] | nrow(sim_list[[i]]) < expected_nrow) {
       print("NA NaN or Error detected")
       next
     } else {
@@ -183,19 +191,18 @@ grid.arrange(sx_plot, sy_plot, ex_plot, ey_plot)
 ```
 
 
+```{r d2_list_chunk, message=FALSE, echo = F, include = F}
+
 ## Create a more robust data set with relative distances
-#and ensure you have a plasubile d2o distribution
+# and ensure you have a plasubile d2o distribution
 
-```{r d2_list_chunk, echo=F}
-
-time_interval <- 0.21
 
 TBF <- sim_list
 subTBF_nrow <- length(TBF[[1]][, 1])
 time_seq <- matrix(seq(0, (subTBF_nrow - 1) * time_interval, time_interval), ncol = 1)
 for (i in 1:length(TBF)) {
-  TBF[[i]] <- cbind(TBF[[i]], time_seq)
-  colnames(TBF[[i]]) <- c("x", "y", "is_bound", "time")
+  TBF[[i]] <- cbind(TBF[[i]][, c(1, 2)], time_seq)
+  colnames(TBF[[i]]) <- c("x", "y", "time")
 }
 
 t_int <- TBF[[1]][, "time"][2]
@@ -212,9 +219,9 @@ for (i in 1:length(TBF)) {
     d2svec[j] <-
       sqrt((float_mat[1, 1] - float_mat[j, 1])^2 + (float_mat[1, 2] - float_mat[j, 2])^
         2)
-    d2pvec[j] <-
-      sqrt((float_mat[(j - 1), 1] - float_mat[j, 1])^2 + (float_mat[(j - 1), 2] - float_mat[j, 2])^
-        2)
+    d2p_x <- float_mat[(j - 1), 1] - float_mat[j, 1]
+    d2p_y <- float_mat[(j - 1), 2] - float_mat[j, 2]
+    d2pvec[j] <- sqrt(d2p_x^2 + d2p_y^2)
     d2ovec[j] <- sqrt(float_mat[j, 1]^2 + float_mat[j, 2]^2)
   }
   float_mat <-
@@ -225,7 +232,7 @@ for (i in 1:length(TBF)) {
       matrix(d2ovec, ncol = 1)
     )
   colnames(float_mat) <-
-    c("x", "y", "is_bound", "time", "D2P", "D2S", "D2O")
+    c("x", "y", "time", "D2P", "D2S", "D2O")
   row.names(float_mat) <- c(1:nrow(float_mat))
   d2_list[[i]] <- float_mat
   tot_d2o <- c(tot_d2o, d2ovec)
@@ -245,14 +252,26 @@ print_plots <- TRUE
 
 periph_occu_list <- vector("list", length(d2_list))
 
+# Use debuff feature if you want to ONLY look at equilibrium at end of trajectories
+Peri_Debuff <- T
+Debuff_Output_Length <- as.integer(600 / time_interval)
+
 bound_zone_thickness <-
   (1 - sqrt(2 / 3)) # this is outer third of nucleus
 
-# # TODO maybe make binning a function? to apply across the list
-# bin_to_10sec <- FALSE
-#
-for (i in 1:length(d2_list)) {
-  float_po_logic <- d2_list[[i]][, "D2O"] > (1 - bound_zone_thickness)
+if (Peri_Debuff) {
+  # pre_allocate new po_list
+  po_list <- lapply(1:length(d2_list), matrix, data = NA, nrow = Debuff_Output_Length, ncol = ncol(d2_list[[1]]))
+  for (i in 1:length(d2_list)) {
+    nrow_d2l <- nrow(d2_list[[i]])
+    po_list[[i]] <- d2_list[[i]][((nrow_d2l - Debuff_Output_Length):nrow_d2l), ]
+  }
+} else {
+  po_list <- d2_list
+}
+
+for (i in 1:length(po_list)) {
+  float_po_logic <- po_list[[i]][, "D2O"] > (1 - bound_zone_thickness)
   float_po_matrix <-
     matrix(seq(0, (length(float_po_logic) - 1) * time_interval, time_interval), ncol = 1)
   periph_occu_list[[i]] <-
@@ -304,7 +323,7 @@ for (i in 1:length(unique(mpp_frame$Trajectory))) {
 po_plot <- ggplot(data = nompp_frame) +
   geom_tile(aes(
     x = time,
-    y = rank,
+    y = Trajectory,
     color = is_periph,
     fill = is_periph
   ),
@@ -313,7 +332,9 @@ po_plot <- ggplot(data = nompp_frame) +
   scale_colour_viridis() +
   scale_fill_viridis() +
   coord_cartesian(xlim = c(0, (float_time_interval * time_nrow))) +
-  comtheme
+  comtheme +
+  ylab("Simulated Trajectory with Zipcode") +
+  xlab("time (s)")
 
 
 po_avg_time_frame <- data.frame(time = rep(NA, time_nrow), bound_frac = rep(NA, time_nrow))
@@ -381,7 +402,7 @@ kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 
 ```{r multimsd, eval=FALSE, message=FALSE, include=FALSE}
 
-mmsdplot(c(uap, gup))
+mmsdplot(c("FLE_URA3", "FLE_u90_b90"))
 ```
 
 ```{r Repositioning,eval=FALSE, message=FALSE, include=FALSE}
@@ -412,7 +433,7 @@ grid.arrange(velo_plot, time_plot, mdt_plot, mdd_plot)
 
 ##Cluster analysis
 
-```{r Clusters, echo=F}
+```{r Clusters, echo=F, eval = F}
 # randomize the d2_list into two pairwise lists
 
 source(paste(pull_dir, "SimClustFuncs.R", sep = ""), echo = FALSE)
@@ -442,10 +463,6 @@ if (plen != slen) stop("d2_list was split improperly or is odd")
 
 # perform cluster component analysis on the two lists in a pairwise fashion
 
-# Function
-# args: two lists of x/y positions, must be same length
-# output: list of individual step distances
-
 # initialize arg_lists
 
 pri_list <- last_200_list[pri_d2_IDs]
@@ -472,58 +489,35 @@ for (i in 1:length(id_matlist)) {
 
 mean_id_frame <- as.data.frame(mean_id_mat)
 
-colnames(mean_id_frame) <- c("Path_ID", "interdist")
+colnames(mean_id_frame) <- c("Pair_ID", "interdist")
 
-interdist_plot <- ggplot(data = mean_id_frame) +
-  geom_jitter(aes(x = "Sim", y = interdist), color = "blue", height = 0, width = 0.1) +
+interdist_plot <- ggplot(data = mean_id_frame, aes(x = "Sim", y = interdist)) +
+  geom_jitter(color = "blue", height = 0, width = 0.1) +
   coord_cartesian(ylim = c(0, 2)) +
-  geom_point(aes(x = "Sim", y = mean(interdist)), size = 5) +
-  geom_errorbar(aes(x = "Sim", ymin = mean(interdist) - sd(interdist), ymax = mean(interdist) + sd(interdist)), width = 0.1) +
+  geom_boxplot(width = 0.1, notch = T) +
   comtheme
 
+magcor_frame <- sim_clust_magcor(pri_xy_list, sec_xy_list)
 
-
-
-
-# Function
-# args: two lists of step magnitudes of equal length to compare via cor()
-# output: data.frame of each trajectory pair cor()
-
-pri_d2p_list <- lapply(1:plen, matrix, data = NA, ncol = 1, nrow = nrow(pri_list[[1]]) - plen)
-sec_d2p_list <- lapply(1:slen, matrix, data = NA, ncol = 1, nrow = nrow(sec_list[[1]]) - slen)
-
-for (i in 1:plen) {
-  pri_d2p_list[[i]] <- pri_list[[i]][c(2:nrow(pri_list[[i]])), "D2P"]
-  sec_d2p_list[[i]] <- sec_list[[i]][c(2:nrow(sec_list[[i]])), "D2P"]
-}
-
-magcor_frame <- sim_clust_magcor(pri_d2p_list, sec_d2p_list)
-
-magcor_plot <- ggplot(data = magcor_frame) +
-  geom_jitter(aes(x = "Sim", y = mag_PCC), color = "red", height = 0, width = 0.1) +
+magcor_plot <- ggplot(data = magcor_frame, aes(x = "Sim", y = mag_PCC)) +
+  geom_jitter(color = "red", height = 0, width = 0.1) +
   coord_cartesian(ylim = c(-1, 1)) +
-  geom_point(aes(x = "Sim", y = mean(mag_PCC)), size = 5) +
-  geom_errorbar(aes(x = "Sim", ymin = mean(mag_PCC) - sd(mag_PCC), ymax = mean(mag_PCC) + sd(mag_PCC)), width = 0.1) +
+  geom_boxplot(width = 0.1, notch = T) +
   comtheme
 
-# Funciton
-# args: primary_d2p_list, secondary_d2p_list, and interdist
-# output: mean delta theta for each trajectory pair
-
-clust_theta_list <- sim_clust_theta(pri_d2p_list, sec_d2p_list, id_matlist)
+clust_theta_list <- sim_clust_theta(pri_xy_list, sec_xy_list)
 
 ctl_len <- length(clust_theta_list)
 
 mean_clust_theta_frame <- data.frame(Pair_ID = numeric(), mean_theta = numeric())
 
 for (i in 1:ctl_len) {
-  mean_clust_theta_frame[i, ] <- c(i, mean(clust_theta_list[[i]]))
+  mean_clust_theta_frame[i, ] <- c(i, mean(clust_theta_list[[i]], na.rm = T))
 }
 
-theta_plot <- ggplot(data = mean_clust_theta_frame) +
-  geom_jitter(aes(x = "Sim", y = mean_theta), color = "purple", height = 0, width = 0.1) +
-  geom_point(aes(x = "Sim", y = mean(mean_theta)), size = 5) +
-  geom_errorbar(aes(x = "Sim", ymin = mean(mean_theta) - sd(mean_theta), ymax = mean(mean_theta) + sd(mean_theta)), width = 0.1) +
+theta_plot <- ggplot(data = mean_clust_theta_frame, aes(x = "Sim", y = mean_theta)) +
+  geom_jitter(color = "purple", height = 0, width = 0.1) +
+  geom_boxplot(width = 0.1, notch = T) +
   coord_cartesian(ylim = c(0, 3.14)) +
   comtheme
 
@@ -535,19 +529,22 @@ colnames(sim_clust_comp_frame) <- c("exp", "dCorr", "Delta_Theta", "avg_Dist")
 
 life_frac_list <- sim_clust_lifefrac(id_matlist, time_interval)
 
-total_frac <- mean(life_frac_list[[2]][, 1])
-
 life_frame <- as.data.frame(life_frac_list[[1]]) %>%
   mutate(ID = "Sim") %>%
   mutate(ID_num = 19)
 colnames(life_frame) <- c("lifefrac", "exp", "ID", "ID_num")
 
-life_plot <- ggplot(data = life_frame) +
-  geom_jitter(aes(x = "Sim", y = lifefrac), color = "green", height = 0, width = 0.1) +
-  geom_point(aes(x = "Sim", y = mean(lifefrac)), size = 5) +
-  geom_errorbar(aes(x = "Sim", ymin = mean(lifefrac) - sd(lifefrac), ymax = mean(lifefrac) + sd(lifefrac)), width = 0.1) +
+life_plot <- ggplot(data = life_frame, aes(x = "Sim", y = lifefrac)) +
+  geom_jitter(color = "green", height = 0, width = 0.1) +
+  geom_boxplot(width = 0.1, notch = F) +
   coord_cartesian(ylim = c(0, 1)) +
   comtheme
+
+# create ouput frame
+
+
+output_cluster_comp <- data.frame(ID = "SimZip", exp = mean_id_frame[, "Pair_ID"], dCorr = magcor_frame[, "mag_PCC"], Delta_Theta = mean_clust_theta_frame[, "mean_theta"], avg_Dist = mean_id_frame[, "interdist"])
+
 
 
 
@@ -563,7 +560,7 @@ save_product <- F
 fname <- list_source_wd
 
 d2len <- length(d2_list)
-d2len <- 10
+# d2len <- 10
 d2nrow <- nrow(d2_list[[1]])
 d2ncol <- ncol(d2_list[[1]])
 
@@ -579,20 +576,40 @@ float_frame <- as.data.frame(big_float_mat)
 
 colnames(float_frame) <- c(colnames(d2_list[[1]]), "ID")
 
-traj_anim <- ggplot(data = float_frame, aes(x = time, y = y, group = ID)) +
-  coord_cartesian(ylim = c(-1, 1)) +
-  geom_path(alpha = 0.25, size = 1) +
-  # geom_point(alpha = 0.5)+
+big_pos_frame <- data.frame(x_pos = as.numeric(rep(NA, d2nrow * d2len)), y_pos = as.numeric(rep(NA, d2nrow * d2len)), time = as.numeric(rep(NA, d2nrow * d2len)), ID = as.character(rep(NA, d2nrow * d2len)))
+
+for (i in 1:d2len) {
+  float_df <- as.data.frame(d2_list[[i]][, c("x", "y", "time")])
+  float_df[, 4] <- i
+  big_pos_frame[((i - 1) * d2nrow + 1):(i * d2nrow), 1:4] <- float_df
+}
+
+max_plot <- ggplot(data = big_pos_frame) +
+  stat_density_2d_filled(aes(x = x_pos, y = y_pos, fill = ..level.., color = ..level..), contour_var = "ndensity") +
+  scale_fill_viridis(discrete = T) +
+  scale_color_grey() +
+  # scale_color_viridis(discrete = T, direction = -1)+
   comtheme +
-  scale_color_viridis(discrete = F) +
-  scale_fill_viridis(discrete = F) +
-  labs(x = "time (s)", y = "Simulated Y position (micron)") +
-  transition_reveal(time)
+  xlab("") +
+  ylab("") +
+  theme(legend.position = "right")
+
+print(max_plot)
+
+
+# traj_anim <- ggplot(data = float_frame, aes(x = time, y = y, group = ID)) +
+#   coord_cartesian(ylim = c(-1, 1)) +
+#   geom_path(alpha = 0.25, size = 1) +
+#   # geom_point(alpha = 0.5)+
+#   comtheme +
+#   scale_color_viridis(discrete = F) +
+#   scale_fill_viridis(discrete = F) +
+#   labs(x = "time (s)", y = "Simulated Y position (micron)") +
+#   transition_reveal(time)
 
 if (save_product) {
   animate(traj_anim, duration = 5, fps = 20, width = 1200, height = 600, renderer = gifski_renderer())
   anim_save(filename = paste(fname, ".gif", sep = ""), animaion = traj_anim, path = ".")
   # ggsave(paste(fname,".png",sep=""),width = 30, height = 15, units = "cm")
 }
-
 ```
