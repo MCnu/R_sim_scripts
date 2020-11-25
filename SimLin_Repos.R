@@ -4,7 +4,7 @@ sim_lin <-
   function(delta_start = "follow",
            time_min = 25,
            time_max = 450,
-           peri_rad = 0.85,
+           peri_rad = 0.8165,
            velo = T,
            JDD = F,
            Direct = T,
@@ -31,11 +31,10 @@ sim_lin <-
     }
 
     LUT_ttpv_logic <-
-      (LUT_ttp_vec > time_min & !is.na(LUT_ttp_vec))
+      (LUT_ttp_vec > time_min & LUT_ttp_vec < time_max & !is.na(LUT_ttp_vec))
     print("Fraction of used trajectories:")
     print(mean(LUT_ttpv_logic))
-
-
+    
     JDD_DF <-
       data.frame(
         cID = character(),
@@ -46,24 +45,16 @@ sim_lin <-
     DIRECT_DF <- data.frame()
     pridist_vec <- c()
 
+    if(velo==T) tot_velo_vec <- c()
+    if(summarize==T) summ_frame <- data.frame()
+    
     for (i in 1:length(LUT_ttpv_logic)) {
-      if (velo == T) {
-        if (i == 1) {
-          tot_velo_vec <- c()
-        }
-      }
-      if (summarize == T) {
-        if (i == 1) {
-          summ_frame <- data.frame()
-        }
-      }
-      if (LUT_ttpv_logic[i] == FALSE) {
+      if (!LUT_ttpv_logic[i]) {
         next
       }
       float_mat <- Repos_List[[i]]
-      float_mat <- float_mat[float_mat[, 4] <= LUT_ttp_vec[i], ]
+      float_mat <- float_mat[float_mat[, "time"] <= LUT_ttp_vec[i], ]
       step_count <- nrow(float_mat)
-      # print(step_count)
       # print(precon_float_direct_matrix)
       float_direct_frame <- data.frame()
       if (delta_start == "follow") {
@@ -115,9 +106,13 @@ sim_lin <-
           rbind(float_direct_frame, follow_float_frame)
 
         if (velo == T) {
-          # vector of velocities derived from the D2P and time per frame (0.21)
+          # vector of velocities derived from the D2P and time per frame
+          precontact_steps <- as.vector(float_mat[2:nrow(float_mat), "D2P"])
+          time_per_frame <- float_mat[2,"time"] - float_mat[1,"time"]
+
+          
           tot_velo_vec <-
-            c(tot_velo_vec, (float_mat[2:nrow(float_mat), "D2P"] / (float_mat[2, "time"] - float_mat[1, "time"])))
+            c(tot_velo_vec, c(precontact_steps / time_per_frame))
         }
 
         if (summarize == T) {

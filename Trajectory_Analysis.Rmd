@@ -71,16 +71,16 @@ comtheme <- theme_bw() +
 
 # Parameters that matter!
 # How many rows (positions) do you expect?
-expected_nrow <- 6000
+expected_nrow <- 1200
 # What is the interval of time between positions?
-time_interval <- 0.21
+time_interval <- 0.5
 
 # Do you want to remove trajectories that are not the expected length or contain
 # either NAs or NaNs?
 remove_incomplete_trajectoreies <- T
 
 # specify the directory containing trajectory .csv files
-list_source_wd <- list.files()[3]
+list_source_wd <- list.files()[8]
 
 print(paste("trajectories used: ", list_source_wd, sep = ""))
 setwd(list_source_wd)
@@ -246,7 +246,7 @@ plot(density(tot_d2o, from = 0, to = max(tot_d2o)))
 
 ## Visualize Peripheral Occupancy
 
-```{r peripheral_occupancy, echo=F}
+```{r peripheral_occupancy, echo=F, warning=F}
 
 print_plots <- TRUE
 
@@ -257,7 +257,7 @@ Peri_Debuff <- T
 Debuff_Output_Length <- as.integer(600 / time_interval)
 
 bound_zone_thickness <-
-  (1 - sqrt(2 / 3)) # this is outer third of nucleus
+  (1 - sqrt(2 / 3)) # this is outer third of nucleus with radius = 1 micron
 
 if (Peri_Debuff) {
   # pre_allocate new po_list
@@ -405,7 +405,9 @@ kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 mmsdplot(c("FLE_URA3", "FLE_u90_b90"))
 ```
 
-```{r Repositioning,eval=FALSE, message=FALSE, include=FALSE}
+```{r Repositioning, eval = FALSE}
+source(paste(pull_dir, "SimLin_Repos.R", sep = ""), echo = FALSE)
+
 Repos_List <- d2_list
 sim_lin()
 
@@ -584,15 +586,17 @@ for (i in 1:d2len) {
   big_pos_frame[((i - 1) * d2nrow + 1):(i * d2nrow), 1:4] <- float_df
 }
 
-max_plot <- ggplot(data = big_pos_frame) +
-  stat_density_2d_filled(aes(x = x_pos, y = y_pos, fill = ..level.., color = ..level..), contour_var = "ndensity") +
-  scale_fill_viridis(discrete = T) +
-  scale_color_grey() +
+max_plot <- ggplot(data = big_pos_frame, aes(x = x_pos, y = y_pos)) +
+#  stat_density_2d(aes(x = x_pos, y = y_pos, fill = ..level.., color = ..level..), geom= "raster", contour_var = "ndensity") +
+  geom_bin2d(bins = 100)+
+  scale_fill_gradient(low = "white", high = "red") +
+  #scale_color_grey() +
   # scale_color_viridis(discrete = T, direction = -1)+
   comtheme +
+  theme(legend.position = "right") +
   xlab("") +
-  ylab("") +
-  theme(legend.position = "right")
+  ylab("")
+
 
 print(max_plot)
 

@@ -11,6 +11,7 @@ mmsdplot <-
            plot_output_dir,
            plot_legend = F,
            save_plot = F) {
+    initial_dir <- getwd()
     setwd(merge_input_dir)
     msdcomplete <-
       data.frame(
@@ -113,6 +114,6 @@ mmsdplot <-
 
     print(mplot)
     print("Plot's done!")
-
+    setwd(initial_dir)
     global_mmsd <<- msdcomplete
   }
