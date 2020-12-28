@@ -4,7 +4,7 @@ sim_lin <-
   function(delta_start = "follow",
            time_min = 25,
            time_max = 450,
-           peri_rad = 0.8165,
+           peri_rad = 0.85,
            velo = T,
            JDD = F,
            Direct = T,
@@ -109,10 +109,10 @@ sim_lin <-
           # vector of velocities derived from the D2P and time per frame
           precontact_steps <- as.vector(float_mat[2:nrow(float_mat), "D2P"])
           time_per_frame <- float_mat[2,"time"] - float_mat[1,"time"]
-
           
           tot_velo_vec <-
             c(tot_velo_vec, c(precontact_steps / time_per_frame))
+
         }
 
         if (summarize == T) {

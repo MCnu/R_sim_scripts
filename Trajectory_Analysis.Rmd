@@ -16,7 +16,7 @@ pull_dir <- "~/PULLS/R_sim_scripts/"
 # Your dataset directory
 dataset_dir <- "~/DataSets/"
 
-file_dir <- paste(dataset_dir, "/d201102/", sep = "")
+file_dir <- paste(dataset_dir, "/mrkdwn_active_datasets/", sep = "")
 
 # set this to the raw_data directory
 root_dir <- file_dir
@@ -71,9 +71,9 @@ comtheme <- theme_bw() +
 
 # Parameters that matter!
 # How many rows (positions) do you expect?
-expected_nrow <- 1200
+expected_nrow <- 2000
 # What is the interval of time between positions?
-time_interval <- 0.5
+time_interval <- 0.21
 
 # Do you want to remove trajectories that are not the expected length or contain
 # either NAs or NaNs?
@@ -89,6 +89,8 @@ list_source_wd <- getwd() %>%
   strsplit("/") %>%
   unlist()
 list_source_wd <- list_source_wd[length(list_source_wd)]
+
+sim_list <- vector(mode = "list", length = length(list.files()))
 
 for (i in 1:length(list.files())) {
   if (i == 1) {
@@ -223,6 +225,7 @@ for (i in 1:length(TBF)) {
     d2p_y <- float_mat[(j - 1), 2] - float_mat[j, 2]
     d2pvec[j] <- sqrt(d2p_x^2 + d2p_y^2)
     d2ovec[j] <- sqrt(float_mat[j, 1]^2 + float_mat[j, 2]^2)
+    if(d2pvec[j] >= 0.5) print(d2pvec[j])
   }
   float_mat <-
     cbind(
@@ -232,13 +235,14 @@ for (i in 1:length(TBF)) {
       matrix(d2ovec, ncol = 1)
     )
   colnames(float_mat) <-
-    c("x", "y", "time", "D2P", "D2S", "D2O")
+    c("x", "y", "time", "D2S", "D2P", "D2O")
   row.names(float_mat) <- c(1:nrow(float_mat))
   d2_list[[i]] <- float_mat
   tot_d2o <- c(tot_d2o, d2ovec)
 }
 
 plot(density(tot_d2o, from = 0, to = max(tot_d2o)))
+
 ```
 
 
@@ -253,11 +257,11 @@ print_plots <- TRUE
 periph_occu_list <- vector("list", length(d2_list))
 
 # Use debuff feature if you want to ONLY look at equilibrium at end of trajectories
-Peri_Debuff <- T
+Peri_Debuff <- F
 Debuff_Output_Length <- as.integer(600 / time_interval)
 
-bound_zone_thickness <-
-  (1 - sqrt(2 / 3)) # this is outer third of nucleus with radius = 1 micron
+bound_zone_thickness <- 0.15 #microns
+  #(1 - sqrt(2 / 3)) # this is outer third of nucleus with radius = 1 micron
 
 if (Peri_Debuff) {
   # pre_allocate new po_list
@@ -381,18 +385,18 @@ if (print_plots) {
 ```
 
 
-```{r MSD, eval=FALSE, message=FALSE, include=FALSE}
+```{r MSD, eval=FALSE, include=F}
 
 msd_dir <- "~/DataSets/trajectory_r_data/analytical_environment/calculated_MSD"
 merge_dir <- "~/DataSets/trajectory_r_data/analytical_environment/MSD_merged"
 
 
-for (i in 1:length(sim_list)) {
+for (i in 1:length(d2_list)) {
   if (i == 1) {
-    msd_list <- vector(mode = "list", length = length(sim_list))
+    msd_list <- vector(mode = "list", length = length(d2_list))
   }
-  sl_len <- length(sim_list[[i]][, 1])
-  msd_list[[i]] <- sim_list[[i]][((sl_len - 199):sl_len), ]
+  sl_len <- nrow(d2_list[[i]])
+  msd_list[[i]] <- d2_list[[i]][((sl_len - 199):sl_len), ]
 }
 
 print(list_source_wd)
@@ -402,7 +406,7 @@ kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 
 ```{r multimsd, eval=FALSE, message=FALSE, include=FALSE}
 
-mmsdplot(c("FLE_URA3", "FLE_u90_b90"))
+mmsdplot(c("FLE_URA3", "Uniform_Steps", "Gaussian_Steps"))
 ```
 
 ```{r Repositioning, eval = FALSE}
@@ -433,7 +437,6 @@ mdd_plot <- ggplot(data = global_direct_sim) +
 grid.arrange(velo_plot, time_plot, mdt_plot, mdd_plot)
 ```
 
-##Cluster analysis
 
 ```{r Clusters, echo=F, eval = F}
 # randomize the d2_list into two pairwise lists
@@ -532,8 +535,8 @@ colnames(sim_clust_comp_frame) <- c("exp", "dCorr", "Delta_Theta", "avg_Dist")
 life_frac_list <- sim_clust_lifefrac(id_matlist, time_interval)
 
 life_frame <- as.data.frame(life_frac_list[[1]]) %>%
-  mutate(ID = "Sim") %>%
-  mutate(ID_num = 19)
+  mutate(ID = list_source_wd) %>%
+  mutate(ID_num = 20)
 colnames(life_frame) <- c("lifefrac", "exp", "ID", "ID_num")
 
 life_plot <- ggplot(data = life_frame, aes(x = "Sim", y = lifefrac)) +
@@ -545,7 +548,7 @@ life_plot <- ggplot(data = life_frame, aes(x = "Sim", y = lifefrac)) +
 # create ouput frame
 
 
-output_cluster_comp <- data.frame(ID = "SimZip", exp = mean_id_frame[, "Pair_ID"], dCorr = magcor_frame[, "mag_PCC"], Delta_Theta = mean_clust_theta_frame[, "mean_theta"], avg_Dist = mean_id_frame[, "interdist"])
+output_cluster_comp <- data.frame(ID = list_source_wd, exp = mean_id_frame[, "Pair_ID"], dCorr = magcor_frame[, "mag_PCC"], Delta_Theta = mean_clust_theta_frame[, "mean_theta"], avg_Dist = mean_id_frame[, "interdist"])
 
 
 
@@ -587,13 +590,10 @@ for (i in 1:d2len) {
 }
 
 max_plot <- ggplot(data = big_pos_frame, aes(x = x_pos, y = y_pos)) +
-#  stat_density_2d(aes(x = x_pos, y = y_pos, fill = ..level.., color = ..level..), geom= "raster", contour_var = "ndensity") +
-  geom_bin2d(bins = 100)+
+  geom_bin2d(bins = 50)+
   scale_fill_gradient(low = "white", high = "red") +
-  #scale_color_grey() +
-  # scale_color_viridis(discrete = T, direction = -1)+
   comtheme +
-  theme(legend.position = "right") +
+  #theme(legend.position = "right") +
   xlab("") +
   ylab("")
 
