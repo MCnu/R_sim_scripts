@@ -3,26 +3,11 @@ title: "Analysis for Trajectories"
 author: "Michael Chas Sumner"
 output:
   html_document: default
-  pdf_document: default
+
 ---
 
 
 ```{r setup, echo=F,include = F}
-
-# pulled_git_directory
-
-pull_dir <- "~/PULLS/R_sim_scripts/"
-
-# Your dataset directory
-dataset_dir <- "~/DataSets/"
-
-file_dir <- paste(dataset_dir, "/mrkdwn_active_datasets/", sep = "")
-
-# set this to the raw_data directory
-root_dir <- file_dir
-
-opts_knit$set(root.dir = root_dir)
-
 library(stats)
 
 library(data.table)
@@ -48,6 +33,21 @@ source(paste(pull_dir, "SimLin_Repos.R", sep = ""), echo = FALSE)
 source(paste(pull_dir, "multimsd.R", sep = ""), echo = FALSE)
 
 source(paste(pull_dir, "SimClustFuncs.R", sep = ""), echo = FALSE)
+
+# pulled_git_directory
+
+pull_dir <- "~/PULLS/R_sim_scripts/"
+
+# Your dataset directory
+dataset_dir <- "~/DataSets/"
+
+file_dir <- paste(dataset_dir, "/mrkdwn_active_datasets/", sep = "")
+
+# set this to the raw_data directory
+root_dir <- file_dir
+
+opts_knit$set(root.dir = root_dir)
+
 
 uap <- "U3alonePlus"
 gup <- "G1atU3Plus"
@@ -80,7 +80,7 @@ time_interval <- 0.21
 remove_incomplete_trajectoreies <- T
 
 # specify the directory containing trajectory .csv files
-list_source_wd <- list.files()[8]
+list_source_wd <- list.files()[25]
 
 print(paste("trajectories used: ", list_source_wd, sep = ""))
 setwd(list_source_wd)
@@ -385,7 +385,7 @@ if (print_plots) {
 ```
 
 
-```{r MSD, eval=FALSE, include=F}
+```{r MSD, eval=T, include=F}
 
 msd_dir <- "~/DataSets/trajectory_r_data/analytical_environment/calculated_MSD"
 merge_dir <- "~/DataSets/trajectory_r_data/analytical_environment/MSD_merged"
