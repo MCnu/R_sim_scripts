@@ -3,7 +3,11 @@ title: "Analysis for Trajectories"
 author: "Michael Chas Sumner"
 output:
   html_document: default
-
+params:
+  list_source_wd_pos: 26
+  time_interval: 0.21
+  expected_nrow: 2000
+  
 ---
 
 
@@ -71,16 +75,16 @@ comtheme <- theme_bw() +
 
 # Parameters that matter!
 # How many rows (positions) do you expect?
-expected_nrow <- 2000
+expected_nrow <- params$expected_nrow
 # What is the interval of time between positions?
-time_interval <- 0.21
+time_interval <- params$time_interval
 
 # Do you want to remove trajectories that are not the expected length or contain
 # either NAs or NaNs?
 remove_incomplete_trajectoreies <- T
 
 # specify the directory containing trajectory .csv files
-list_source_wd <- list.files()[25]
+list_source_wd <- list.files()[params$list_source_wd_pos]
 
 print(paste("trajectories used: ", list_source_wd, sep = ""))
 setwd(list_source_wd)
