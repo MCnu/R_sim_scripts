@@ -4,9 +4,10 @@ author: "Michael Chas Sumner"
 output:
   html_document: default
 params:
-  list_source_wd_pos: 26
-  time_interval: 0.21
+  list_source_wd_pos: 16
+  time_interval: 0.5
   expected_nrow: 2000
+  root_dir: "~/DataSets/boost_trajecs/"
   
 ---
 
@@ -28,6 +29,13 @@ library(knitr)
 
 library(gridExtra)
 
+pull_dir <- "~/PULLS/R_sim_scripts/"
+
+# Your dataset directory
+
+opts_knit$set(root.dir <- params$root_dir)
+
+
 source(paste(pull_dir, "Simulated_MSD.R", sep = ""), echo = FALSE)
 
 source(paste(pull_dir, "smoothMSD.R", sep = ""), echo = FALSE)
@@ -40,17 +48,6 @@ source(paste(pull_dir, "SimClustFuncs.R", sep = ""), echo = FALSE)
 
 # pulled_git_directory
 
-pull_dir <- "~/PULLS/R_sim_scripts/"
-
-# Your dataset directory
-dataset_dir <- "~/DataSets/"
-
-file_dir <- paste(dataset_dir, "/mrkdwn_active_datasets/", sep = "")
-
-# set this to the raw_data directory
-root_dir <- file_dir
-
-opts_knit$set(root.dir = root_dir)
 
 
 uap <- "U3alonePlus"
@@ -71,7 +68,7 @@ comtheme <- theme_bw() +
 
 ```{r sim_list_chunk, echo=F, warning=F}
 
-
+setwd(root.dir)
 
 # Parameters that matter!
 # How many rows (positions) do you expect?
@@ -197,7 +194,7 @@ grid.arrange(sx_plot, sy_plot, ex_plot, ey_plot)
 ```
 
 
-```{r d2_list_chunk, message=FALSE, echo = F, include = F}
+```{r d2_list_chunk, message=FALSE, echo = F}
 
 ## Create a more robust data set with relative distances
 # and ensure you have a plasubile d2o distribution
@@ -254,7 +251,7 @@ plot(density(tot_d2o, from = 0, to = max(tot_d2o)))
 
 ## Visualize Peripheral Occupancy
 
-```{r peripheral_occupancy, echo=F, warning=F}
+```{r peripheral_occupancy, echo=F, warning=F, eval = F}
 
 print_plots <- TRUE
 
@@ -389,10 +386,12 @@ if (print_plots) {
 ```
 
 
-```{r MSD, eval=T, include=F}
 
-msd_dir <- "~/DataSets/trajectory_r_data/analytical_environment/calculated_MSD"
-merge_dir <- "~/DataSets/trajectory_r_data/analytical_environment/MSD_merged"
+
+```{r MSD, eval=F}
+
+msd_dir <- "~/DataSets/TrackR_MSD/calculated_MSD"
+merge_dir <- "~/DataSets/TrackR_MSD/MSD_merged"
 
 
 for (i in 1:length(d2_list)) {
@@ -408,12 +407,12 @@ simMSD(msd_list, list_source_wd, output_dir = msd_dir)
 kurzplot(list_source_wd, msd_input_dir = msd_dir, merge_output_dir = merge_dir)
 ```
 
-```{r multimsd, eval=FALSE, message=FALSE, include=FALSE}
+```{r multimsd, eval=F, message=FALSE, include=FALSE}
 
-mmsdplot(c("FLE_URA3", "Uniform_Steps", "Gaussian_Steps"))
+mmsdplot(c("BOOST_1_1000", "BOOST_1_0100", "BOOST_1_0010", "BOOST_1_0001", "BOOST_0_9000", "BOOST_0_9900", "BOOST_0_9990", "BOOST_0_9999"),merge_input_dir= "~/DataSets/TrackR_MSD/MSD_merged",)
 ```
 
-```{r Repositioning, eval = FALSE}
+```{r Repositioning, eval = T}
 source(paste(pull_dir, "SimLin_Repos.R", sep = ""), echo = FALSE)
 
 Repos_List <- d2_list
@@ -540,7 +539,7 @@ life_frac_list <- sim_clust_lifefrac(id_matlist, time_interval)
 
 life_frame <- as.data.frame(life_frac_list[[1]]) %>%
   mutate(ID = list_source_wd) %>%
-  mutate(ID_num = 20)
+  mutate(ID_num = 19)
 colnames(life_frame) <- c("lifefrac", "exp", "ID", "ID_num")
 
 life_plot <- ggplot(data = life_frame, aes(x = "Sim", y = lifefrac)) +
@@ -561,7 +560,7 @@ grid.arrange(interdist_plot, magcor_plot, theta_plot, life_plot)
 ```
 
 
-```{r Animate, echo=F}
+```{r Animate, eval=F, echo=F}
 # dependent on d2_list
 
 save_product <- F

@@ -1,7 +1,12 @@
 
 
-simMSD <- function(input_list, fileID, taus = 100, SILENCE = T,
-                   output_dir = paste(dataset_dir, "trajecotry_r_data/analytical_environment/calculated_MSD/", sep = "")) {
+simMSD <- function(input_list, 
+                   fileID, 
+                   taus = 100, 
+                   SILENCE = T,
+                   output_dir = paste(dataset_dir, 
+                                      "trajecotry_r_data/analytical_environment/calculated_MSD/", 
+                                      sep = "")) {
   for (i in 1:length(input_list)) {
     DF <- as.data.frame(input_list[[i]])
     

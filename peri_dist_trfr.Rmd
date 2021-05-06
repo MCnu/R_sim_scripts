@@ -1,0 +1,364 @@
+---
+title: "PERI_DIST_TRACKER"
+author: "MChas Sumner"
+date: "3/5/2021"
+output: html_document
+params:
+  root_dir: "~/Desktop/"
+  target_dir: "~/Desktop/INO1REDUX/i1c/"
+  png_dir: "~/Desktop/INO1REDUX/i1c/PNG_IMAGER/"
+  csv_dir: "~/Desktop/INO1REDUX/i1c/CSV_TRACKS/"
+---
+
+```{r setup, include=FALSE, silence = T}
+library(knitr)
+library(imager)
+library(tiff)
+library(magick)
+library(tidyverse)
+library(stats)
+library(data.table)
+library(gridExtra)
+library(viridis)
+library(boot)
+
+source('~/Pulls/R_sim_scripts/multimsd.R', echo=TRUE)
+source('~/Pulls/R_sim_scripts/smoothMSD.R', echo=TRUE)
+source('~/Pulls/R_sim_scripts/Simulated_MSD.R', echo=TRUE)
+
+knitr::opts_knit$set(root.dir = params$root_dir)
+
+```
+
+
+Convert all images to png for simplified import/analysis
+```{r imager_import_pngconv, echo = F, eval = F}
+# for an imager and image magick based analysis, this is a separate
+# method to import for these tools
+
+# Load in tifs and convert to .png files in a new directory
+
+setwd(params$target_dir)
+
+dir.create(params$png_dir)
+
+# identify nd files in directory
+
+nd_fnames <- list.files(pattern = "*\\.nd")
+
+# identify single red membrane file
+
+red_fnames <- list.files(pattern = "Yoko Red")
+
+# read in membrane tifs and write png
+
+if (length(red_fnames > 0)) {
+  for (i in 1:length(red_fnames)) {
+    image_read(red_fnames[i]) %>% image_write(
+      path = paste(params$png_dir, stringr::str_split(red_fnames[i], " ")[[1]][1], "_Red_Mem.png", sep = ""),
+      format = "png"
+    )
+  }
+}
+
+# repeat above process for all Yoko Green in this directory
+green_fnames <- list.files(pattern = "Yoko Green")
+
+for (i in 1:length(green_fnames)) {
+
+  # wrangle the image number, piping did not work here for some reason??
+  png_name_tail <- stringr::str_split(green_fnames[i], pattern = " ")[[1]][3]
+
+  png_name_tail <- stringr::str_split(png_name_tail, pattern = "\\.")[[1]][1]
+
+  png_name_tail <- stringr::str_split(png_name_tail, pattern = "t")
+
+  png_name_tail_number <- as.numeric(png_name_tail[[1]][2])
+
+  png_name_tail <- png_name_tail[[1]][1]
+
+  # cleaning digits for indexing
+
+  if (png_name_tail_number < 10) {
+    png_name_tail <- paste(png_name_tail, "t00", png_name_tail_number, sep = "")
+  } else if (png_name_tail_number < 100) {
+    png_name_tail <- paste(png_name_tail, "t0", png_name_tail_number, sep = "")
+  } else if (png_name_tail_number >= 1000) {
+    stop("Image series greater than 1000, need to fix import code")
+  } else if (png_name_tail_number < 1000) {
+    png_name_tail <- paste(png_name_tail, "t", png_name_tail_number, sep = "")
+  }
+
+  png_name_head <- paste(stringr::str_split(green_fnames[i], " ")[[1]][1], "_",
+    sep = ""
+  )
+
+  # save png in the png directory
+  image_read(green_fnames[i]) %>% image_write(
+    path = paste(params$png_dir, png_name_head, png_name_tail, ".png", sep = ""),
+    format = "png"
+  )
+}
+```
+
+
+Analyze the png files with green cloud nucleoplasm detection method
+```{r foci_trackdist_singlegreenmem, echo = F}
+
+setwd(params$target_dir)
+
+# distance in pixels for skip step thresholds
+dist2prev_threshold <- 4
+
+dist2cent_threshold <- 8
+
+# number of steps skipped before considered a significant issue
+skipstep_threshold <- 1
+
+# should files with significant tracking issues be removed?
+rm_sig <- TRUE
+
+nd_fnames <- list.files(pattern = "*\\.nd")
+
+setwd(params$png_dir)
+
+green_fnames <- list.files(pattern = "*_Green_t")
+
+foc_pos_list <- list()
+
+mem_pos_mat_list <- list()
+
+sig_issues_i <- c()
+
+
+for (i in 1:length(nd_fnames)) {
+  skipped_step <- FALSE
+
+  temp_identity <- stringr::str_split(nd_fnames[i], pattern = "\\.")[[1]][1]
+
+  temp_green_fnames <- green_fnames[stringr::str_detect(green_fnames, temp_identity)]
+
+  foc_pos_list[[i]] <- matrix(NA, nrow = length(temp_green_fnames), ncol = 4)
+
+  foc_pos_list[[i]][, 4] <- seq(0, (length(temp_green_fnames) - 1) * 0.21, 0.21)
+
+  # only using a single green membrane boundary
+  for (j in 1:length(temp_green_fnames)) {
+    dmem_green <- load.image(temp_green_fnames[i]) %>%
+      imager::threshold("90%") %>%
+      imager::clean(3) %>%
+      imager::grow(px.circle(3)) %>%
+      imager::boundary()
+
+    dmem_green_pix <- which(dmem_green)
+
+    if (length(dmem_green_pix) < 20 | length(dmem_green_pix) > 1000) {
+      next
+    } else {
+      dmem_green_width <- dim(dmem_green)[1]
+
+      dmem_green_mat <- matrix(NA, nrow = length(dmem_green_pix), ncol = 2)
+
+      dmem_green_mat[, 1] <- dmem_green_pix %% dmem_green_width
+
+      dmem_green_mat[, 2] <- 1 + (dmem_green_pix %/% dmem_green_width)
+
+      mem_pos_mat_list[[i]] <- dmem_green_mat
+
+      dmem_green_center_pos <- c(mean(dmem_green_mat[, 1]), mean(dmem_green_mat[, 2]))
+
+      break
+    }
+  }
+
+  # erase prior trajectory memory
+  prev_step_dfoc_posdist <- c(0, 0, 0, 0)
+
+  prev_step_dmem_green_mat <- matrix()
+
+  # operate through green images
+  for (j in 1:length(temp_green_fnames)) {
+    # identify current green image
+    temp_frame_fname <- temp_green_fnames[j]
+
+    # create green focus through higher threshold
+    dfoc_green_raw <- load.image(temp_frame_fname)
+
+    dfoc_green <- imager::threshold(dfoc_green_raw, "99%") %>%
+      imager::clean(2)
+
+    dfoc_pix <- which(dfoc_green)
+
+    # if the locus is lost, go to the next step
+    if (length(dfoc_pix) < 1) {
+
+      # print("lowering foci threshold")
+
+      dfoc_green <- imager::threshold(dfoc_green_raw, "95%") %>%
+        imager::clean(2)
+
+      dfoc_pix <- which(dfoc_green)
+
+      if (length(dfoc_pix) < 1) {
+        if (j == length(temp_green_fnames)) {
+          if (skipped_step_count > 2) {
+            sig_issues_i <- c(sig_issues_i, i)
+          }
+          for (k in (prev_step_dfoc_posdist[1] + 1):length(temp_green_fnames)) {
+            foc_pos_list[[i]][k, 1:3] <- prev_step_dfoc_posdist[2:4]
+          }
+        }
+        skipped_step <- TRUE
+        next
+      }
+    }
+
+    dfoc_width <- dim(dfoc_green)[1]
+
+    dfoc_mat <- matrix(NA, length(dfoc_pix), ncol = 3)
+
+    dfoc_mat[, 1] <- dfoc_pix %% dfoc_width
+
+    dfoc_mat[, 2] <- 1 + (dfoc_pix %/% dfoc_width)
+
+    dfoc_mat[, 3] <- dfoc_green_raw[dfoc_pix]
+
+    dfoc_pos <- c(weighted.mean(dfoc_mat[, 1], dfoc_mat[, 3]), weighted.mean(dfoc_mat[, 2], dfoc_mat[, 3]))
+
+    # check that step distance is below threshold, skip if TRUE
+    if (j > 1) {
+      dfoc_pos_dist2prev <- twopos.pythag(dfoc_pos, prev_step_dfoc_posdist[c(2, 3)])
+      dfoc_dist2center <- twopos.pythag(dfoc_pos, dmem_green_center_pos)
+      if (dfoc_pos_dist2prev > dist2prev_threshold | dfoc_dist2center > dist2cent_threshold) {
+        skipped_step <- TRUE
+        if(j == length(temp_green_fnames)) sig_issues_i <- c(sig_issues_i, i)
+        next
+      }
+    }
+
+    d2p_vec <- c()
+
+    for (k in 1:nrow(dmem_green_mat)) {
+      d2p_vec <- c(d2p_vec, twopos.pythag(dfoc_pos, dmem_green_mat[k, ]))
+    }
+
+    dfoc_dist2peri <- min(d2p_vec)
+
+    closest_bound_pixel_pos <- dmem_green_mat[d2p_vec == dfoc_dist2peri, ]
+
+    cbp_dist2center <- twopos.pythag(closest_bound_pixel_pos, dmem_green_center_pos)
+
+    dfoc_dist2center <- twopos.pythag(dfoc_pos, dmem_green_center_pos)
+
+    if (dfoc_dist2center > cbp_dist2center) {
+      dfoc_dist2peri <- -(dfoc_dist2peri)
+    }
+
+    foc_pos_list[[i]][j, 1:3] <- c(dfoc_pos, dfoc_dist2peri)
+
+
+    if (skipped_step) {
+
+      # if no initial position was identified, we just replicate the first found
+      # TODO: either shorten the tracking or find a better solution
+
+      if (prev_step_dfoc_posdist[1] == 0) {
+        skipped_step_count <- j - 1
+
+        if (skipped_step_count > skipstep_threshold) sig_issues_i <- c(sig_issues_i, i)
+
+        for (k in 1:skipped_step_count) {
+          foc_pos_list[[i]][k, 1:3] <- c(dfoc_pos, dfoc_dist2peri)
+        }
+      } else {
+        skipped_step_count <- j - prev_step_dfoc_posdist[1] - 1
+
+        # store name of files with multiple skipped steps in a row
+        if (skipped_step_count > 2) sig_issues_i <- c(sig_issues_i, i)
+
+        skipped_step_pos_mat <- matrix(nrow = skipped_step_count, ncol = 2)
+
+        skipped_step_pos_mat[, 1] <- seq(prev_step_dfoc_posdist[2],
+          foc_pos_list[[i]][j, 1],
+          length.out = skipped_step_count
+        )
+
+        skipped_step_pos_mat[, 2] <- seq(prev_step_dfoc_posdist[3],
+          foc_pos_list[[i]][j, 2],
+          length.out = skipped_step_count
+        )
+
+        for (k in 1:skipped_step_count) {
+          skipped_posdist <- skipped_step_pos_mat[k, 1:2]
+
+          skipped_posdist[3] <- min(sqrt((skipped_posdist[1] -
+            dmem_green_mat[, 1])^2 +
+            (skipped_posdist[2] -
+              dmem_green_mat[, 2])^2))
+
+          foc_pos_list[[i]][(prev_step_dfoc_posdist[1] + k), 1:3] <- skipped_posdist
+        }
+      }
+    }
+    
+    # reset skip state and store step/mem
+    skipped_step <- FALSE
+
+    prev_step_dfoc_posdist <- c(j, dfoc_pos, dfoc_dist2peri)
+  }
+}
+
+print("The following files had significant issues:")
+print(nd_fnames[unique(sig_issues_i)])
+
+if (rm_sig) {
+  foc_pos_list <- foc_pos_list[-unique(sig_issues_i)]
+  nd_fnames <- nd_fnames[-unique(sig_issues_i)]
+}
+
+
+```
+
+Save all trajectories in foc_pos_list to target_dir using names from nd_fnames
+```{r save_trajecs, eval = F}
+
+pixel_to_micron_conversion <- 0.0881
+
+setwd(params$target_dir)
+
+dir.create(params$csv_dir)
+
+setwd(params$csv_dir)
+
+for (i in 1:length(foc_pos_list)) {
+  curr_df <- as.data.frame(foc_pos_list[[i]])
+  curr_df[, 1:3] <- curr_df[, 1:3] * pixel_to_micron_conversion
+  colnames(curr_df) <- c("X", "Y", "D2Peri", "time")
+  curr_name <- paste(str_split(nd_fnames[i], "nd")[[1]][1], "csv", sep = "")
+  write.csv(curr_df, curr_name, row.names = F)
+}
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r plots, echo=F, eval = F}
+
+
+i_pos <-10
+
+dgm_df <- data.frame(mem_pos_mat_list[[i_pos]])
+
+last_foc_df <- data.frame(foc_pos_list[[i_pos]][, 1:2])
+
+
+ggplot() +
+  geom_point(data = dgm_df, aes(x = X1, y = X2), color = "red", size = 4) +
+  geom_point(data = mutate(last_foc_df, step = c(1:nrow(last_foc_df))), aes(x = X1, y = X2, color = step)) +
+  geom_point(data = dgm_df, aes(x = mean(X1), y = mean(X2)), size = 3, color = "blue") +
+  scale_color_viridis(option = "D") +
+  coord_cartesian(xlim = c(0, 50), ylim = c(0, 50))
+
+```
