@@ -1,7 +1,8 @@
 # R_sim_scripts
 
 ###
-# R SCRIPTS AND MARKDOWNS UTILIZED IN Sumner, Torrisi, Brickner, Brickner (2021, eLife)
+# by M. Chas Sumner (mcnu)
+ Used for analyses in Sumner, Torrisi, Brickner, Brickner (2021, eLife)
 ###
 
 # TOC
